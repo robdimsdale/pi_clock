@@ -14,16 +14,13 @@ use std::{thread, time};
 
 #[cfg(target_arch = "arm")]
 use embedded_graphics::{
-    egrectangle, egtext, fonts::Font12x16, pixelcolor::Rgb565, prelude::*, primitive_style,
-    text_style,
+    egrectangle, egtext, fonts::Font12x16, fonts::Font24x32, pixelcolor::Rgb565, prelude::*,
+    primitive_style, text_style,
 };
 #[cfg(target_arch = "arm")]
 use ili9341::{Ili9341, Orientation};
 #[cfg(target_arch = "arm")]
-use rppal::spi::{Bus, Mode, Segment, SlaveSelect, Spi};
-
-#[cfg(target_arch = "arm")]
-use display_interface::WriteOnlyDataCommand;
+use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
 
 const DEFAULT_BRIGHTNESS: f64 = 0.05;
 const OPEN_WEATHER_API_KEY_VAR: &'static str = "OPEN_WEATHER_API_KEY";
@@ -121,6 +118,14 @@ fn main() {
         _ => (&args[1]).parse().unwrap_or(DEFAULT_BRIGHTNESS),
     };
 
+    let open_weather_api_key = env::var(OPEN_WEATHER_API_KEY_VAR).expect(&format!(
+        "Must provide {} env var",
+        OPEN_WEATHER_API_KEY_VAR
+    ));
+    let lat = env::var(LAT_VAR).expect(&format!("Must provide {} env var", LAT_VAR));
+    let lon = env::var(LON_VAR).expect(&format!("Must provide {} env var", LON_VAR));
+    let units = env::var(UNITS_VAR).unwrap_or(DEFAULT_UNITS.to_owned());
+
     println!("Setting up peripherals");
 
     // pwm0 is pin 18
@@ -141,24 +146,51 @@ fn main() {
     dc.export().unwrap();
     dc.set_direction(Direction::Low).unwrap();
 
-    let mut spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, 16_000_000, Mode::Mode0).unwrap();
+    let spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, 16_000_000, Mode::Mode0).unwrap();
 
-    let mut display = Ili9341::new_spi(spi, cs, dc, rs, &mut Delay).unwrap();
+    let spi_di = display_interface_spi::SPIInterface::new(spi, dc, cs);
+
+    let mut display = Ili9341::new(spi_di, rs, &mut Delay).unwrap();
 
     display
         .set_orientation(Orientation::LandscapeFlipped)
         .unwrap();
 
-    let r = egrectangle!(
-        top_left = (0, 0),
-        bottom_right = (320, 240),
-        style = primitive_style!(fill_color = Rgb565::BLACK),
-    );
+    println!("Initialization complete");
 
-    println!("Drawing black rectangle (background)");
-    r.draw(&mut display).unwrap();
+    let mut last_weather_attempt = time::Instant::now();
+    let mut last_weather_success = time::Instant::now();
+
+    let mut weather = pi_clock::get_weather(&open_weather_api_key, &lat, &lon, &units)
+        .expect("failed to get initial weather");
 
     loop {
+        let now = time::Instant::now();
+
+        let duration_since_last_weather = now.duration_since(last_weather_attempt);
+        if duration_since_last_weather > time::Duration::from_secs(600) {
+            last_weather_attempt = now;
+
+            println!(
+                "Getting updated weather ({}s since last attempt)",
+                duration_since_last_weather.as_secs(),
+            );
+
+            if let Ok(updated_weather) =
+                pi_clock::get_weather(&open_weather_api_key, &lat, &lon, &units)
+            {
+                println!("successfully updated weather");
+
+                last_weather_success = last_weather_attempt;
+                weather = updated_weather
+            } else {
+                println!(
+                    "failed to update weather (using previous weather). {}s since last success",
+                    now.duration_since(last_weather_success).as_secs()
+                );
+            }
+        }
+
         let now = Local::now();
 
         let day = &now.weekday().to_string()[0..3];
@@ -166,45 +198,47 @@ fn main() {
             .expect("failed to parse month")
             .name()[0..3];
 
-        let temp: f64 = -12.3;
+        let temp = &weather.main.temp;
 
-        let first_row = format!(
-            "{:02}:{:02} {:>10}",
-            now.hour(),
-            now.minute(),
-            truncate_to_characters("Thunderstorm", 9)
+        let first_row = format!("{:02}:{:02}", now.hour(), now.minute());
+
+        let second_row = format!("{} {} {:<2}", day, month, now.day());
+        let third_row = format!("{}", truncate_to_characters(&weather.weather[0].main, 7));
+        let fourth_row = format!("{:>3}°F", temp.round());
+
+        let text = format!("{}\n{}\n{}", second_row, third_row, fourth_row);
+
+        let r = egrectangle!(
+            top_left = (0, 0),
+            bottom_right = (320, 240),
+            style = primitive_style!(fill_color = Rgb565::BLACK),
         );
-        let second_row = format!("{} {} {:<2} {:>3}°F", day, month, now.day(), temp.round());
-        let text = format!("{}\n{}", first_row, second_row);
+
+        let t_time = egtext!(
+            text = &first_row,
+            top_left = (20, 16),
+            style = text_style!(font = Font24x32, text_color = Rgb565::RED),
+        );
 
         let t = egtext!(
             text = &text,
-            top_left = (20, 16),
-            style = text_style!(font = Font12x16, text_color = Rgb565::RED)
+            top_left = (20, 48),
+            style = text_style!(font = Font12x16, text_color = Rgb565::RED),
         );
 
-        println!("Drawing text");
+        // println!("Drawing black rectangle (background)");
+        r.draw(&mut display).unwrap();
+
+        // println!("Drawing time text");
+        t_time.draw(&mut display).unwrap();
+
+        // println!("Drawing remaining text");
         t.draw(&mut display).unwrap();
 
-        println!("Drawing complete - sleeping");
+        // println!("Drawing complete - sleeping");
 
         thread::sleep(time::Duration::from_secs(5));
     }
-
-    // let open_weather_api_key = env::var(OPEN_WEATHER_API_KEY_VAR).expect(&format!(
-    //     "Must provide {} env var",
-    //     OPEN_WEATHER_API_KEY_VAR
-    // ));
-    // let lat = env::var(LAT_VAR).expect(&format!("Must provide {} env var", LAT_VAR));
-    // let lon = env::var(LON_VAR).expect(&format!("Must provide {} env var", LON_VAR));
-    // let units = env::var(UNITS_VAR).unwrap_or(DEFAULT_UNITS.to_owned());
-
-    // let args: Vec<String> = env::args().collect();
-
-    // let brightness = match args.len() {
-    //     0..=1 => DEFAULT_BRIGHTNESS,
-    //     _ => (&args[1]).parse().unwrap_or(DEFAULT_BRIGHTNESS),
-    // };
 
     // // Using BCM numbers
     // // i.e. pin 0 corresponds to wiringpi 30 and physical 27

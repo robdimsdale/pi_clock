@@ -17,7 +17,7 @@ ureq = { version = "1.5.4", features = ["json"] }
 embedded-graphics = "0.6.2"
 embedded-hal = "0.2.4"
 hd44780-driver = "0.4.0"
-ili9341 = "0.3.0"
+ili9341 = "0.4.1"
 linux-embedded-hal = "0.3"
 rppal = {version = "0.11.3", features = ["hal"]}
-display-interface = "0.4.0"
+display-interface-spi = "0.4.0"

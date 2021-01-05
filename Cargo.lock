@@ -31,6 +31,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e8c087f005730276d1096a652e92a8bacee2e2472bcc9715a74d2bec38b5820"
 
 [[package]]
+name = "byte-slice-cast"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0a5e3906bcbf133e33c1d4d95afc664ad37fbdb9f6568d8043e7ea8c27d93d3"
+
+[[package]]
 name = "byteorder"
 version = "1.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -128,6 +134,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da12a892db5cce95ae247e8803dc653b1a73da3b0450f7983eb518dd54f583cf"
 
 [[package]]
+name = "display-interface-spi"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94d08c3a1682b166cbcbb4fe009a31a1834ba46c16599bf7a9b3cc7bc31b38b0"
+dependencies = [
+ "byte-slice-cast",
+ "display-interface",
+ "embedded-hal",
+]
+
+[[package]]
 name = "embedded-graphics"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -199,10 +216,11 @@ dependencies = [
 
 [[package]]
 name = "ili9341"
-version = "0.3.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3612bef36816cfd5fdba93d97ab8ee1bf29a530ca03ad760a6c6cfdcddca69ec"
+checksum = "dde1f23bf85f9921c6f4ed298706a12fa276d89cec28823f4840734f17f16c24"
 dependencies = [
+ "display-interface",
  "embedded-graphics",
  "embedded-hal",
 ]
@@ -338,7 +356,7 @@ name = "pi_clock"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "display-interface",
+ "display-interface-spi",
  "embedded-graphics",
  "embedded-hal",
  "hd44780-driver",
