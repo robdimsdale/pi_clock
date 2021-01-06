@@ -4,7 +4,7 @@ use std::error::Error;
 use ureq;
 
 use serde_json;
-use weather_types::OpenWeather;
+pub use weather_types::OpenWeather;
 
 pub fn get_weather(
     appid: &str,
