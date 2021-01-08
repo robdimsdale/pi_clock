@@ -1,7 +1,7 @@
-mod weather_types;
+mod open_weather_types;
 
 use std::error::Error;
-pub use weather_types::OpenWeather;
+pub use open_weather_types::OpenWeather;
 
 pub const UNITS_IMPERIAL: &'static str = "imperial";
 pub const UNITS_METRIC: &'static str = "metric";
@@ -39,7 +39,7 @@ pub fn get_weather(
     lat: &str,
     lon: &str,
     units: &Units,
-) -> Result<weather_types::OpenWeather, Box<dyn Error>> {
+) -> Result<open_weather_types::OpenWeather, Box<dyn Error>> {
     let uri = format!(
         "https://api.openweathermap.org/data/2.5/weather?appid={}&lat={}&lon={}&units={}",
         appid,
@@ -51,7 +51,7 @@ pub fn get_weather(
     let mut req = ureq::get(&uri);
     let resp = req.call();
     if resp.ok() {
-        let weather = serde_json::from_str::<weather_types::OpenWeather>(
+        let weather = serde_json::from_str::<open_weather_types::OpenWeather>(
             &resp.into_string().expect("failed to convert into string"),
         )
         .expect("failed to convert to type");
