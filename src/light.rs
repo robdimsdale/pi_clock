@@ -17,6 +17,7 @@
 // 10,000–25,000	    Full daylight (not direct sun)
 // 32,000–100,000	    Direct sunlight
 
+use rand::prelude::*;
 use std::error::Error;
 
 // To enable heterogenous abstractions
@@ -57,16 +58,19 @@ impl LightSensor for VEML7700LightSensor {
     }
 }
 
-pub struct FakeLightSensor {}
+pub struct FakeLightSensor {
+    rng: ThreadRng,
+}
 
 impl FakeLightSensor {
     pub fn new() -> FakeLightSensor {
-        FakeLightSensor {}
+        FakeLightSensor { rng: thread_rng() }
     }
 }
 
 impl LightSensor for FakeLightSensor {
     fn read_lux(&mut self) -> Result<f32, Box<dyn Error>> {
-        Ok(100.0)
+        let val = self.rng.gen_range(1.0..1000.0);
+        Ok(val)
     }
 }
