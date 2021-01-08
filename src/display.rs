@@ -1,4 +1,4 @@
-use crate::light::{LightSensor, LightSensorType};
+use crate::light::LightSensor;
 use crate::weather::{OpenWeather, TemperatureUnits};
 
 use chrono::{DateTime, Datelike, Local, Month, Timelike};
@@ -25,15 +25,15 @@ use rppal::pwm::{Channel, Polarity, Pwm};
 use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
 
 // To enable heterogenous abstractions
-pub enum DisplayType<'a> {
-    Console(ConsoleDisplay<'a>),
+pub enum DisplayType<'a, T: LightSensor> {
+    Console(ConsoleDisplay<'a, T>),
     #[cfg(target_arch = "arm")]
-    HD44780(HD44780Display),
+    HD44780(HD44780Display<'a, T>),
     #[cfg(target_arch = "arm")]
-    ILI9341(ILI9341Display),
+    ILI9341(ILI9341Display<'a, T>),
 }
 
-impl<'a> DisplayType<'a> {
+impl<'a, T: LightSensor> DisplayType<'a, T> {
     pub fn print(
         &mut self,
         time: &DateTime<Local>,
@@ -54,19 +54,19 @@ pub trait Display {
     fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits);
 }
 
-pub struct ConsoleDisplay<'a> {
-    light_sensor: &'a mut LightSensorType,
+pub struct ConsoleDisplay<'a, T: LightSensor> {
+    light_sensor: &'a mut T,
 }
 
-impl<'a> ConsoleDisplay<'a> {
-    pub fn new(light_sensor: &'a mut LightSensorType) -> ConsoleDisplay<'a> {
+impl<'a, T: LightSensor> ConsoleDisplay<'a, T> {
+    pub fn new(light_sensor: &'a mut T) -> ConsoleDisplay<'a, T> {
         ConsoleDisplay {
             light_sensor: light_sensor,
         }
     }
 }
 
-impl<'a> Display for ConsoleDisplay<'a> {
+impl<'a, T: LightSensor> Display for ConsoleDisplay<'a, T> {
     fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits) {
         let first_row = format!(
             "{:02}:{:02} {:>10}",
@@ -101,7 +101,7 @@ impl<'a> Display for ConsoleDisplay<'a> {
 }
 
 #[cfg(target_arch = "arm")]
-pub struct HD44780Display {
+pub struct HD44780Display<'a, T: LightSensor> {
     lcd: HD44780<
         FourBitBus<
             linux_embedded_hal::Pin,
@@ -114,11 +114,13 @@ pub struct HD44780Display {
     >,
 
     brightness_pwm: Pwm,
+
+    light_sensor: &'a mut T,
 }
 
 #[cfg(target_arch = "arm")]
-impl HD44780Display {
-    pub fn new(brightness: f64) -> HD44780Display {
+impl<'a, T: LightSensor> HD44780Display<'a, T> {
+    pub fn new(brightness: f64, light_sensor: &'a mut T) -> HD44780Display<'a, T> {
         // Using BCM numbers
         // i.e. pin 0 corresponds to wiringpi 30 and physical 27
 
@@ -177,10 +179,11 @@ impl HD44780Display {
         HD44780Display {
             lcd: lcd,
             brightness_pwm: pwm0,
+            light_sensor: light_sensor,
         }
     }
 
-    pub fn set_brightness(&mut self, brightness: f64) {
+    fn set_brightness(&mut self, brightness: f64) {
         // TODO: Validate 0 <= brightness <= 1
         self.brightness_pwm
             .set_duty_cycle(brightness)
@@ -189,7 +192,7 @@ impl HD44780Display {
 }
 
 #[cfg(target_arch = "arm")]
-impl Display for HD44780Display {
+impl<'a, T: LightSensor> Display for HD44780Display<'a, T> {
     fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits) {
         let first_row = format!(
             "{:02}:{:02} {:>10}",
@@ -233,21 +236,28 @@ impl Display for HD44780Display {
         self.lcd
             .write_bytes(&second_row_as_bytes, &mut Delay)
             .expect("failed to write to display");
+
+        let lux = self.light_sensor.read_lux().unwrap();
+        let brightness = (lux.min(1000.0)).max(1.0) / 1000.0;
+        println!("Current lux: {}, brightness: {}", lux, brightness);
+
+        self.set_brightness(brightness as f64);
     }
 }
 
 #[cfg(target_arch = "arm")]
-pub struct ILI9341Display {
+pub struct ILI9341Display<'a, T: LightSensor> {
     display: Ili9341<
         display_interface_spi::SPIInterface<Spi, linux_embedded_hal::Pin, linux_embedded_hal::Pin>,
         linux_embedded_hal::Pin,
     >,
     brightness_pwm: Pwm,
+    light_sensor: &'a mut T,
 }
 
 #[cfg(target_arch = "arm")]
-impl ILI9341Display {
-    pub fn new(brightness: f64) -> Self {
+impl<'a, T: LightSensor> ILI9341Display<'a, T> {
+    pub fn new(brightness: f64,light_sensor: &'a mut T) -> Self {
         // pwm0 is pin 18
         let pwm0 = Pwm::with_frequency(Channel::Pwm0, 20000.0, brightness, Polarity::Normal, false)
             .expect("failed to initialize PWM 0 (brightness)");
@@ -278,10 +288,11 @@ impl ILI9341Display {
         ILI9341Display {
             display: display,
             brightness_pwm: pwm0,
+            light_sensor: light_sensor,
         }
     }
 
-    pub fn set_brightness(&mut self, brightness: f64) {
+    fn set_brightness(&mut self, brightness: f64) {
         // TODO: Validate 0 <= brightness <= 1
         self.brightness_pwm
             .set_duty_cycle(brightness)
@@ -290,7 +301,7 @@ impl ILI9341Display {
 }
 
 #[cfg(target_arch = "arm")]
-impl Display for ILI9341Display {
+impl <'a, T: LightSensor> Display for ILI9341Display<'a,T> {
     fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits) {
         let day = &time.weekday().to_string()[0..3];
         let month = &Month::from_u32(time.month())
@@ -326,6 +337,12 @@ impl Display for ILI9341Display {
         background.draw(&mut self.display).unwrap();
         time_text.draw(&mut self.display).unwrap();
         other_text.draw(&mut self.display).unwrap();
+
+        let lux = self.light_sensor.read_lux().unwrap();
+        let brightness = (lux.min(1000.0)).max(1.0) / 1000.0;
+        println!("Current lux: {}, brightness: {}", lux, brightness);
+
+        self.set_brightness(brightness as f64);
     }
 }
 

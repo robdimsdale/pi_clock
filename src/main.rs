@@ -17,13 +17,13 @@ const HD44780_DISPLAY_TYPE: &'static str = "hd44780";
 #[cfg(target_arch = "arm")]
 const ILI9341_DISPLAY_TYPE: &'static str = "ili9341";
 
-const FAKE_LIGHT_SENSOR_TYPE: &'static str = "fake";
+const RANDOM_LIGHT_SENSOR_TYPE: &'static str = "random";
 #[cfg(target_arch = "arm")]
 const VEML7700_LIGHT_SENSOR_TYPE: &'static str = "veml7700";
 
 const DEFAULT_UNITS: pi_clock::TemperatureUnits = pi_clock::TemperatureUnits::Imperial;
 const DEFAULT_DISPLAY_TYPE: &'static str = CONSOLE_DISPLAY_TYPE;
-const DEFAULT_LIGHT_SENSOR_TYPE: &'static str = FAKE_LIGHT_SENSOR_TYPE;
+const DEFAULT_LIGHT_SENSOR_TYPE: &'static str = RANDOM_LIGHT_SENSOR_TYPE;
 
 fn main() {
     println!("Initializing");
@@ -34,6 +34,7 @@ fn main() {
     ));
     let lat = env::var(LAT_VAR).expect(&format!("Must provide {} env var", LAT_VAR));
     let lon = env::var(LON_VAR).expect(&format!("Must provide {} env var", LON_VAR));
+
     let units_str = env::var(UNITS_VAR).unwrap_or(DEFAULT_UNITS.to_string());
     let units = pi_clock::TemperatureUnits::from_string(&units_str);
 
@@ -41,7 +42,9 @@ fn main() {
         env::var(LIGHT_SENSOR_TYPE_VAR).unwrap_or(DEFAULT_LIGHT_SENSOR_TYPE.to_owned());
 
     let mut light_sensor = match light_sensor_type_str.as_str() {
-        FAKE_LIGHT_SENSOR_TYPE => pi_clock::LightSensorType::Fake(pi_clock::FakeLightSensor::new()),
+        RANDOM_LIGHT_SENSOR_TYPE => {
+            pi_clock::LightSensorType::Random(pi_clock::RandomLightSensor::new())
+        }
 
         #[cfg(target_arch = "arm")]
         VEML7700_LIGHT_SENSOR_TYPE => {
@@ -68,7 +71,10 @@ fn main() {
                 _ => (&args[1]).parse().unwrap_or(DEFAULT_BRIGHTNESS),
             };
 
-            pi_clock::DisplayType::HD44780(pi_clock::HD44780Display::new(brightness))
+            pi_clock::DisplayType::HD44780(pi_clock::HD44780Display::new(
+                brightness,
+                &mut light_sensor,
+            ))
         }
 
         #[cfg(target_arch = "arm")]
@@ -79,7 +85,10 @@ fn main() {
                 0..=1 => DEFAULT_BRIGHTNESS,
                 _ => (&args[1]).parse().unwrap_or(DEFAULT_BRIGHTNESS),
             };
-            pi_clock::DisplayType::ILI9341(pi_clock::ILI9341Display::new(brightness))
+            pi_clock::DisplayType::ILI9341(pi_clock::ILI9341Display::new(
+                brightness,
+                &mut light_sensor,
+            ))
         }
         _ => {
             panic!("Unrecognized display type: {}", display_type_str)
@@ -88,11 +97,5 @@ fn main() {
 
     println!("Initialization complete");
 
-    pi_clock::run(
-        &open_weather_api_key,
-        &lat,
-        &lon,
-        &units,
-        &mut display,
-    );
+    pi_clock::run(&open_weather_api_key, &lat, &lon, &units, &mut display);
 }

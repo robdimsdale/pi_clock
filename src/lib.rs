@@ -8,16 +8,16 @@ pub use display::{ConsoleDisplay, Display, DisplayType};
 pub use display::{HD44780Display, ILI9341Display};
 #[cfg(target_arch = "arm")]
 pub use light::VEML7700LightSensor;
-pub use light::{FakeLightSensor, LightSensorType};
+pub use light::{RandomLightSensor, LightSensor, LightSensorType};
 use std::{thread, time};
 pub use weather::{OpenWeather, TemperatureUnits};
 
-pub fn run(
+pub fn run<T: LightSensor>(
     open_weather_api_key: &str,
     lat: &str,
     lon: &str,
     units: &TemperatureUnits,
-    display: &mut display::DisplayType,
+    display: &mut display::DisplayType<T>,
 ) {
     let mut last_weather_attempt = time::Instant::now();
     let mut last_weather_success = time::Instant::now();

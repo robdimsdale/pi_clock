@@ -22,7 +22,7 @@ use std::error::Error;
 
 // To enable heterogenous abstractions
 pub enum LightSensorType {
-    Fake(FakeLightSensor),
+    Random(RandomLightSensor),
     #[cfg(target_arch = "arm")]
     VEML7700(VEML7700LightSensor),
 }
@@ -30,7 +30,7 @@ pub enum LightSensorType {
 impl LightSensor for LightSensorType {
     fn read_lux(&mut self) -> Result<f32, Box<dyn Error>> {
         match &mut *self {
-            Self::Fake(sensor) => sensor.read_lux(),
+            Self::Random(sensor) => sensor.read_lux(),
             #[cfg(target_arch = "arm")]
             Self::VEML7700(sensor) => sensor.read_lux(),
         }
@@ -58,17 +58,17 @@ impl LightSensor for VEML7700LightSensor {
     }
 }
 
-pub struct FakeLightSensor {
+pub struct RandomLightSensor {
     rng: ThreadRng,
 }
 
-impl FakeLightSensor {
-    pub fn new() -> FakeLightSensor {
-        FakeLightSensor { rng: thread_rng() }
+impl RandomLightSensor {
+    pub fn new() -> RandomLightSensor {
+        RandomLightSensor { rng: thread_rng() }
     }
 }
 
-impl LightSensor for FakeLightSensor {
+impl LightSensor for RandomLightSensor {
     fn read_lux(&mut self) -> Result<f32, Box<dyn Error>> {
         let val = self.rng.gen_range(1.0..1000.0);
         Ok(val)
