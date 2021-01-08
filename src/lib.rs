@@ -1,10 +1,14 @@
 mod display;
+mod light;
 mod weather;
 
 use chrono::Local;
 pub use display::{ConsoleDisplay, Display, DisplayType};
 #[cfg(target_arch = "arm")]
 pub use display::{HD44780Display, ILI9341Display};
+#[cfg(target_arch = "arm")]
+pub use light::VEML7700LightSensor;
+pub use light::{FakeLightSensor, LightSensorType};
 use std::{thread, time};
 pub use weather::{OpenWeather, TemperatureUnits};
 

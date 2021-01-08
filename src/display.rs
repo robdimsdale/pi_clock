@@ -1,3 +1,4 @@
+use crate::light::{LightSensor, LightSensorType};
 use crate::weather::{OpenWeather, TemperatureUnits};
 
 use chrono::{DateTime, Datelike, Local, Month, Timelike};
@@ -24,15 +25,15 @@ use rppal::pwm::{Channel, Polarity, Pwm};
 use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
 
 // To enable heterogenous abstractions
-pub enum DisplayType {
-    Console(ConsoleDisplay),
+pub enum DisplayType<'a> {
+    Console(ConsoleDisplay<'a>),
     #[cfg(target_arch = "arm")]
     HD44780(HD44780Display),
     #[cfg(target_arch = "arm")]
     ILI9341(ILI9341Display),
 }
 
-impl DisplayType {
+impl<'a> DisplayType<'a> {
     pub fn print(
         &mut self,
         time: &DateTime<Local>,
@@ -53,15 +54,19 @@ pub trait Display {
     fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits);
 }
 
-pub struct ConsoleDisplay {}
+pub struct ConsoleDisplay<'a> {
+    light_sensor: &'a mut LightSensorType,
+}
 
-impl ConsoleDisplay {
-    pub fn new() -> ConsoleDisplay {
-        ConsoleDisplay {}
+impl<'a> ConsoleDisplay<'a> {
+    pub fn new(light_sensor: &'a mut LightSensorType) -> ConsoleDisplay<'a> {
+        ConsoleDisplay {
+            light_sensor: light_sensor,
+        }
     }
 }
 
-impl Display for ConsoleDisplay {
+impl<'a> Display for ConsoleDisplay<'a> {
     fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits) {
         let first_row = format!(
             "{:02}:{:02} {:>10}",
@@ -90,6 +95,8 @@ impl Display for ConsoleDisplay {
         println!("|{}|", first_row);
         println!("|{}|", second_row);
         println!("-{}-", std::iter::repeat("-").take(16).collect::<String>());
+
+        println!("Current light: {}", self.light_sensor.read_lux().unwrap());
     }
 }
 

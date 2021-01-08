@@ -1,6 +1,8 @@
 use std::env;
 
 const DISPLAY_TYPE_VAR: &'static str = "DISPLAY";
+const LIGHT_SENSOR_TYPE_VAR: &'static str = "LIGHT_SENSOR";
+
 const OPEN_WEATHER_API_KEY_VAR: &'static str = "OPEN_WEATHER_API_KEY";
 const LAT_VAR: &'static str = "LAT";
 const LON_VAR: &'static str = "LON";
@@ -15,8 +17,13 @@ const HD44780_DISPLAY_TYPE: &'static str = "hd44780";
 #[cfg(target_arch = "arm")]
 const ILI9341_DISPLAY_TYPE: &'static str = "ili9341";
 
+const FAKE_LIGHT_SENSOR_TYPE: &'static str = "fake";
+#[cfg(target_arch = "arm")]
+const VEML7700_LIGHT_SENSOR_TYPE: &'static str = "veml7700";
+
 const DEFAULT_UNITS: pi_clock::TemperatureUnits = pi_clock::TemperatureUnits::Imperial;
 const DEFAULT_DISPLAY_TYPE: &'static str = CONSOLE_DISPLAY_TYPE;
+const DEFAULT_LIGHT_SENSOR_TYPE: &'static str = FAKE_LIGHT_SENSOR_TYPE;
 
 fn main() {
     println!("Initializing");
@@ -30,10 +37,27 @@ fn main() {
     let units_str = env::var(UNITS_VAR).unwrap_or(DEFAULT_UNITS.to_string());
     let units = pi_clock::TemperatureUnits::from_string(&units_str);
 
+    let light_sensor_type_str =
+        env::var(LIGHT_SENSOR_TYPE_VAR).unwrap_or(DEFAULT_LIGHT_SENSOR_TYPE.to_owned());
+
+    let mut light_sensor = match light_sensor_type_str.as_str() {
+        FAKE_LIGHT_SENSOR_TYPE => pi_clock::LightSensorType::Fake(pi_clock::FakeLightSensor::new()),
+
+        #[cfg(target_arch = "arm")]
+        VEML7700_LIGHT_SENSOR_TYPE => {
+            pi_clock::LightSensorType::VEML7700(pi_clock::VEML7700LightSensor::new())
+        }
+        _ => {
+            panic!("Unrecognized light sensor type: {}", light_sensor_type_str)
+        }
+    };
+
     let display_type_str = env::var(DISPLAY_TYPE_VAR).unwrap_or(DEFAULT_DISPLAY_TYPE.to_owned());
 
     let mut display = match display_type_str.as_str() {
-        CONSOLE_DISPLAY_TYPE => pi_clock::DisplayType::Console(pi_clock::ConsoleDisplay::new()),
+        CONSOLE_DISPLAY_TYPE => {
+            pi_clock::DisplayType::Console(pi_clock::ConsoleDisplay::new(&mut light_sensor))
+        }
 
         #[cfg(target_arch = "arm")]
         HD44780_DISPLAY_TYPE => {
@@ -64,5 +88,11 @@ fn main() {
 
     println!("Initialization complete");
 
-    pi_clock::run(&open_weather_api_key, &lat, &lon, &units, &mut display);
+    pi_clock::run(
+        &open_weather_api_key,
+        &lat,
+        &lon,
+        &units,
+        &mut display,
+    );
 }
