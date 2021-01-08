@@ -1,32 +1,55 @@
-mod weather_types;
+mod display;
+mod weather;
 
-use std::error::Error;
-use ureq;
+use chrono::Local;
+pub use display::{ConsoleDisplay, Display, DisplayType};
+#[cfg(target_arch = "arm")]
+pub use display::{HD44780Display, ILI9341Display};
+use std::{thread, time};
+pub use weather::{OpenWeather, Units};
 
-use serde_json;
-pub use weather_types::OpenWeather;
-
-pub fn get_weather(
-    appid: &str,
+pub fn run(
+    open_weather_api_key: &str,
     lat: &str,
     lon: &str,
-    units: &str,
-) -> Result<OpenWeather, Box<dyn Error>> {
-    let uri = format!(
-        "https://api.openweathermap.org/data/2.5/weather?appid={}&lat={}&lon={}&units={}",
-        appid, lat, lon, units
-    );
+    units: &Units,
+    display: &mut display::DisplayType,
+) {
+    let mut last_weather_attempt = time::Instant::now();
+    let mut last_weather_success = time::Instant::now();
 
-    let mut req = ureq::get(&uri);
-    let resp = req.call();
-    if resp.ok() {
-        let weather = serde_json::from_str::<OpenWeather>(
-            &resp.into_string().expect("failed to convert into string"),
-        )
-        .expect("failed to convert to type");
+    let mut weather = weather::get_weather(&open_weather_api_key, &lat, &lon, &units)
+        .expect("failed to get initial weather");
 
-        Ok(weather)
-    } else {
-        panic!("bad response: {:?} - req: {:?}", resp, req);
+    loop {
+        let now = time::Instant::now();
+
+        let duration_since_last_weather = now.duration_since(last_weather_attempt);
+        if duration_since_last_weather > time::Duration::from_secs(600) {
+            last_weather_attempt = now;
+
+            println!(
+                "Getting updated weather ({}s since last attempt)",
+                duration_since_last_weather.as_secs(),
+            );
+
+            if let Ok(updated_weather) =
+                weather::get_weather(&open_weather_api_key, &lat, &lon, &units)
+            {
+                println!("successfully updated weather");
+
+                last_weather_success = last_weather_attempt;
+                weather = updated_weather
+            } else {
+                println!(
+                    "failed to update weather (using previous weather). {}s since last success",
+                    now.duration_since(last_weather_success).as_secs()
+                );
+            }
+        }
+
+        display.print(&Local::now(), &weather);
+
+        thread::sleep(time::Duration::from_secs(1));
     }
 }
