@@ -1,4 +1,4 @@
-use crate::weather::OpenWeather;
+use crate::weather::{OpenWeather, TemperatureUnits};
 
 use chrono::{DateTime, Datelike, Local, Month, Timelike};
 use num_traits::cast::FromPrimitive;
@@ -33,19 +33,24 @@ pub enum DisplayType {
 }
 
 impl DisplayType {
-    pub fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather) {
+    pub fn print(
+        &mut self,
+        time: &DateTime<Local>,
+        weather: &OpenWeather,
+        units: &TemperatureUnits,
+    ) {
         match &mut *self {
-            Self::Console(console_display) => console_display.print(time, weather),
+            Self::Console(console_display) => console_display.print(time, weather, units),
             #[cfg(target_arch = "arm")]
-            Self::HD44780(hd44780_display) => hd44780_display.print(time, weather),
+            Self::HD44780(hd44780_display) => hd44780_display.print(time, weather, units),
             #[cfg(target_arch = "arm")]
-            Self::ILI9341(ili9341_display) => ili9341_display.print(time, weather),
+            Self::ILI9341(ili9341_display) => ili9341_display.print(time, weather, units),
         }
     }
 }
 
 pub trait Display {
-    fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather);
+    fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits);
 }
 
 pub struct ConsoleDisplay {}
@@ -57,7 +62,7 @@ impl ConsoleDisplay {
 }
 
 impl Display for ConsoleDisplay {
-    fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather) {
+    fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits) {
         let first_row = format!(
             "{:02}:{:02} {:>10}",
             time.hour(),
@@ -71,13 +76,14 @@ impl Display for ConsoleDisplay {
             .name()[0..3];
 
         // temperature is right-aligned with three characters max (including sign).
-        // If the temperature is less than -99°F or > 999°F we have other problems.
+        // If the temperature is less than -99° or > 999° we have other problems.
         let second_row = format!(
-            "{} {} {:<2} {:>3}°F",
+            "{} {} {:<2} {:>3}°{}",
             day,
             month,
             time.day(),
-            &weather.main.temp.round()
+            &weather.main.temp.round(),
+            units.as_char(),
         );
         println!();
         println!("-{}-", std::iter::repeat("-").take(16).collect::<String>());
@@ -177,7 +183,7 @@ impl HD44780Display {
 
 #[cfg(target_arch = "arm")]
 impl Display for HD44780Display {
-    fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather) {
+    fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits) {
         let first_row = format!(
             "{:02}:{:02} {:>10}",
             time.hour(),
@@ -203,15 +209,16 @@ impl Display for HD44780Display {
             .name()[0..3];
 
         // temperature is right-aligned with three characters max (including sign).
-        // If the temperature is less than -99°F or > 999°F we have other problems.
+        // If the temperature is less than -99° or > 999° we have other problems.
         // The X is replaced later with a degree symbol to ensure it is represented as one byte rather than multi-byte (which is what rust will do by default).
         // TODO: can we use b'º' ?
         let second_row = format!(
-            "{} {} {:<2} {:>3}XF",
+            "{} {} {:<2} {:>3}X{}",
             day,
             month,
             time.day(),
-            &weather.main.temp.round()
+            &weather.main.temp.round(),
+            units.as_char(),
         );
         let mut second_row_as_bytes = second_row.as_bytes().to_vec();
         second_row_as_bytes[14] = 0xDF;
@@ -277,7 +284,7 @@ impl ILI9341Display {
 
 #[cfg(target_arch = "arm")]
 impl Display for ILI9341Display {
-    fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather) {
+    fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits) {
         let day = &time.weekday().to_string()[0..3];
         let month = &Month::from_u32(time.month())
             .expect("failed to parse month")
@@ -287,7 +294,7 @@ impl Display for ILI9341Display {
 
         let second_row = format!("{} {} {:<2}", day, month, time.day());
         let third_row = format!("{}", truncate_to_characters(&weather.weather[0].main, 7));
-        let fourth_row = format!("{:>3}°F", &weather.main.temp.round());
+        let fourth_row = format!("{:>3}°{}", &weather.main.temp.round(), units.as_char());
 
         let text = format!("{}\n{}\n{}", second_row, third_row, fourth_row);
 

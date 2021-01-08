@@ -6,13 +6,13 @@ pub use display::{ConsoleDisplay, Display, DisplayType};
 #[cfg(target_arch = "arm")]
 pub use display::{HD44780Display, ILI9341Display};
 use std::{thread, time};
-pub use weather::{OpenWeather, Units};
+pub use weather::{OpenWeather, TemperatureUnits};
 
 pub fn run(
     open_weather_api_key: &str,
     lat: &str,
     lon: &str,
-    units: &Units,
+    units: &TemperatureUnits,
     display: &mut display::DisplayType,
 ) {
     let mut last_weather_attempt = time::Instant::now();
@@ -48,7 +48,7 @@ pub fn run(
             }
         }
 
-        display.print(&Local::now(), &weather);
+        display.print(&Local::now(), &weather, &units);
 
         thread::sleep(time::Duration::from_secs(1));
     }

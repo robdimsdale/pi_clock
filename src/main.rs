@@ -15,7 +15,7 @@ const HD44780_DISPLAY_TYPE: &'static str = "hd44780";
 #[cfg(target_arch = "arm")]
 const ILI9341_DISPLAY_TYPE: &'static str = "ili9341";
 
-const DEFAULT_UNITS: pi_clock::Units = pi_clock::Units::Imperial;
+const DEFAULT_UNITS: pi_clock::TemperatureUnits = pi_clock::TemperatureUnits::Imperial;
 const DEFAULT_DISPLAY_TYPE: &'static str = CONSOLE_DISPLAY_TYPE;
 
 fn main() {
@@ -28,7 +28,7 @@ fn main() {
     let lat = env::var(LAT_VAR).expect(&format!("Must provide {} env var", LAT_VAR));
     let lon = env::var(LON_VAR).expect(&format!("Must provide {} env var", LON_VAR));
     let units_str = env::var(UNITS_VAR).unwrap_or(DEFAULT_UNITS.to_string());
-    let units = pi_clock::Units::from_string(&units_str);
+    let units = pi_clock::TemperatureUnits::from_string(&units_str);
 
     let display_type_str = env::var(DISPLAY_TYPE_VAR).unwrap_or(DEFAULT_DISPLAY_TYPE.to_owned());
 
