@@ -17,12 +17,14 @@
 // 10,000–25,000	    Full daylight (not direct sun)
 // 32,000–100,000	    Direct sunlight
 
+use chrono::{Local, NaiveTime};
 use rand::prelude::*;
 use std::error::Error;
 
 // To enable heterogenous abstractions
 pub enum LightSensorType {
     Random(RandomLightSensor),
+    Time(TimeLightSensor),
     #[cfg(target_arch = "arm")]
     VEML7700(VEML7700LightSensor),
 }
@@ -31,6 +33,7 @@ impl LightSensor for LightSensorType {
     fn read_lux(&mut self) -> Result<f32, Box<dyn Error>> {
         match &mut *self {
             Self::Random(sensor) => sensor.read_lux(),
+            Self::Time(sensor) => sensor.read_lux(),
             #[cfg(target_arch = "arm")]
             Self::VEML7700(sensor) => sensor.read_lux(),
         }
@@ -39,6 +42,30 @@ impl LightSensor for LightSensorType {
 
 pub trait LightSensor {
     fn read_lux(&mut self) -> Result<f32, Box<dyn Error>>;
+}
+
+pub struct TimeLightSensor {}
+
+impl TimeLightSensor {
+    pub fn new() -> TimeLightSensor {
+        TimeLightSensor {}
+    }
+}
+
+impl LightSensor for TimeLightSensor {
+    fn read_lux(&mut self) -> Result<f32, Box<dyn Error>> {
+        let now = Local::now();
+
+        let time_low = NaiveTime::from_hms(8, 0, 0);
+        let time_high = NaiveTime::from_hms(22, 30, 0);
+        let range = time_low..time_high;
+
+        if range.contains(&now.time()) {
+            return Ok(1000.0);
+        } else {
+            return Ok(1.0);
+        }
+    }
 }
 
 #[cfg(target_arch = "arm")]

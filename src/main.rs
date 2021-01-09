@@ -18,6 +18,7 @@ const HD44780_DISPLAY_TYPE: &'static str = "hd44780";
 const ILI9341_DISPLAY_TYPE: &'static str = "ili9341";
 
 const RANDOM_LIGHT_SENSOR_TYPE: &'static str = "random";
+const TIME_LIGHT_SENSOR_TYPE: &'static str = "time";
 #[cfg(target_arch = "arm")]
 const VEML7700_LIGHT_SENSOR_TYPE: &'static str = "veml7700";
 
@@ -45,6 +46,7 @@ fn main() {
         RANDOM_LIGHT_SENSOR_TYPE => {
             pi_clock::LightSensorType::Random(pi_clock::RandomLightSensor::new())
         }
+        TIME_LIGHT_SENSOR_TYPE => pi_clock::LightSensorType::Time(pi_clock::TimeLightSensor::new()),
 
         #[cfg(target_arch = "arm")]
         VEML7700_LIGHT_SENSOR_TYPE => {

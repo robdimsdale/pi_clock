@@ -8,7 +8,7 @@ pub use display::{ConsoleDisplay, Display, DisplayType};
 pub use display::{HD44780Display, ILI9341Display};
 #[cfg(target_arch = "arm")]
 pub use light::VEML7700LightSensor;
-pub use light::{RandomLightSensor, LightSensor, LightSensorType};
+pub use light::{LightSensor, LightSensorType, RandomLightSensor, TimeLightSensor};
 use std::{thread, time};
 pub use weather::{OpenWeather, TemperatureUnits};
 
