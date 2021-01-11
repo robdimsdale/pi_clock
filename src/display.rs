@@ -238,7 +238,8 @@ impl<'a, T: LightSensor> Display for HD44780Display<'a, T> {
             .expect("failed to write to display");
 
         let lux = self.light_sensor.read_lux().unwrap();
-        let brightness = (lux.min(1000.0)).max(1.0) / 1000.0;
+        let min_brightness = 0.01;
+        let brightness = lux.max(min_brightness);
         println!("Current lux: {}, brightness: {}", lux, brightness);
 
         self.set_brightness(brightness as f64);
@@ -257,7 +258,7 @@ pub struct ILI9341Display<'a, T: LightSensor> {
 
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> ILI9341Display<'a, T> {
-    pub fn new(brightness: f64,light_sensor: &'a mut T) -> Self {
+    pub fn new(brightness: f64, light_sensor: &'a mut T) -> Self {
         // pwm0 is pin 18
         let pwm0 = Pwm::with_frequency(Channel::Pwm0, 20000.0, brightness, Polarity::Normal, false)
             .expect("failed to initialize PWM 0 (brightness)");
@@ -301,7 +302,7 @@ impl<'a, T: LightSensor> ILI9341Display<'a, T> {
 }
 
 #[cfg(target_arch = "arm")]
-impl <'a, T: LightSensor> Display for ILI9341Display<'a,T> {
+impl<'a, T: LightSensor> Display for ILI9341Display<'a, T> {
     fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits) {
         let day = &time.weekday().to_string()[0..3];
         let month = &Month::from_u32(time.month())

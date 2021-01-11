@@ -12,6 +12,8 @@ pub use light::{LightSensor, LightSensorType, RandomLightSensor, TimeLightSensor
 use std::{thread, time};
 pub use weather::{OpenWeather, TemperatureUnits};
 
+const SLEEP_DURATION_MILLIS: u64 = 100;
+
 pub fn run<T: LightSensor>(
     open_weather_api_key: &str,
     lat: &str,
@@ -54,6 +56,6 @@ pub fn run<T: LightSensor>(
 
         display.print(&Local::now(), &weather, &units);
 
-        thread::sleep(time::Duration::from_secs(1));
+        thread::sleep(time::Duration::from_millis(SLEEP_DURATION_MILLIS));
     }
 }

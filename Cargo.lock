@@ -378,6 +378,7 @@ dependencies = [
  "embedded-hal",
  "hd44780-driver",
  "ili9341",
+ "lazy_static",
  "linux-embedded-hal",
  "num-traits",
  "rand",
