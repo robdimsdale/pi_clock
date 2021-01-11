@@ -5,6 +5,8 @@ use chrono::{DateTime, Datelike, Local, Month, Timelike};
 use num_traits::cast::FromPrimitive;
 
 #[cfg(target_arch = "arm")]
+use adafruit_alphanum4::{AlphaNum4, AsciiChar, Index};
+#[cfg(target_arch = "arm")]
 use embedded_graphics::{
     egrectangle, egtext, fonts::Font12x16, fonts::Font24x32, pixelcolor::Rgb565, prelude::*,
     primitive_style, text_style,
@@ -14,9 +16,13 @@ use hd44780_driver::{
     bus::FourBitBus, Cursor, CursorBlink, Display as HD44780DisplaySetting, DisplayMode, HD44780,
 };
 #[cfg(target_arch = "arm")]
+use ht16k33::HT16K33;
+#[cfg(target_arch = "arm")]
 use ili9341::{Ili9341, Orientation};
 #[cfg(target_arch = "arm")]
 use linux_embedded_hal::sysfs_gpio::Direction;
+#[cfg(target_arch = "arm")]
+use linux_embedded_hal::I2cdev;
 #[cfg(target_arch = "arm")]
 use linux_embedded_hal::{Delay, Pin};
 #[cfg(target_arch = "arm")]
@@ -31,6 +37,8 @@ pub enum DisplayType<'a, T: LightSensor> {
     HD44780(HD44780Display<'a, T>),
     #[cfg(target_arch = "arm")]
     ILI9341(ILI9341Display<'a, T>),
+    #[cfg(target_arch = "arm")]
+    ALPHANUM4(ALPHANUM4Display<'a, T>),
 }
 
 impl<'a, T: LightSensor> DisplayType<'a, T> {
@@ -41,11 +49,13 @@ impl<'a, T: LightSensor> DisplayType<'a, T> {
         units: &TemperatureUnits,
     ) {
         match &mut *self {
-            Self::Console(console_display) => console_display.print(time, weather, units),
+            Self::Console(display) => display.print(time, weather, units),
             #[cfg(target_arch = "arm")]
-            Self::HD44780(hd44780_display) => hd44780_display.print(time, weather, units),
+            Self::HD44780(display) => display.print(time, weather, units),
             #[cfg(target_arch = "arm")]
-            Self::ILI9341(ili9341_display) => ili9341_display.print(time, weather, units),
+            Self::ILI9341(display) => display.print(time, weather, units),
+            #[cfg(target_arch = "arm")]
+            Self::ALPHANUM4(display) => display.print(time, weather, units),
         }
     }
 }
@@ -183,10 +193,10 @@ impl<'a, T: LightSensor> HD44780Display<'a, T> {
         }
     }
 
-    fn set_brightness(&mut self, brightness: f64) {
+    fn set_brightness(&mut self, brightness: f32) {
         // TODO: Validate 0 <= brightness <= 1
         self.brightness_pwm
-            .set_duty_cycle(brightness)
+            .set_duty_cycle(brightness as f64)
             .expect("failed to set brightness");
     }
 }
@@ -242,7 +252,7 @@ impl<'a, T: LightSensor> Display for HD44780Display<'a, T> {
         let brightness = lux.max(min_brightness);
         println!("Current lux: {}, brightness: {}", lux, brightness);
 
-        self.set_brightness(brightness as f64);
+        self.set_brightness(brightness);
     }
 }
 
@@ -293,10 +303,10 @@ impl<'a, T: LightSensor> ILI9341Display<'a, T> {
         }
     }
 
-    fn set_brightness(&mut self, brightness: f64) {
+    fn set_brightness(&mut self, brightness: f32) {
         // TODO: Validate 0 <= brightness <= 1
         self.brightness_pwm
-            .set_duty_cycle(brightness)
+            .set_duty_cycle(brightness as f64)
             .expect("failed to set brightness");
     }
 }
@@ -343,8 +353,98 @@ impl<'a, T: LightSensor> Display for ILI9341Display<'a, T> {
         let brightness = (lux.min(1000.0)).max(1.0) / 1000.0;
         println!("Current lux: {}, brightness: {}", lux, brightness);
 
-        self.set_brightness(brightness as f64);
+        self.set_brightness(brightness);
     }
+}
+
+#[cfg(target_arch = "arm")]
+pub struct ALPHANUM4Display<'a, T: LightSensor> {
+    ht16k33: HT16K33<I2cdev>,
+
+    light_sensor: &'a mut T,
+}
+
+#[cfg(target_arch = "arm")]
+impl<'a, T: LightSensor> ALPHANUM4Display<'a, T> {
+    pub fn new(brightness: f64, light_sensor: &'a mut T) -> ALPHANUM4Display<'a, T> {
+        // The I2C device address.
+        let address = 0x70;
+
+        // Create an I2C device.
+        let mut i2c = I2cdev::new("/dev/i2c-1").unwrap();
+        i2c.set_slave_address(address as u16).unwrap();
+
+        let mut ht16k33 = HT16K33::new(i2c, address);
+        ht16k33.initialize().unwrap();
+
+        ht16k33.set_display(ht16k33::Display::ON).unwrap();
+
+        ALPHANUM4Display {
+            ht16k33: ht16k33,
+            light_sensor: light_sensor,
+        }
+    }
+
+    fn set_brightness(&mut self, brightness: f32) {
+        let level = (brightness * 15.0).round() as u8;
+        let dimming = ht16k33::Dimming::from_u8(level).unwrap();
+
+        println!("Current lux: {}, dimming level: {}/16", brightness, level);
+
+        self.ht16k33.set_dimming(dimming).unwrap();
+    }
+}
+
+#[cfg(target_arch = "arm")]
+impl<'a, T: LightSensor> Display for ALPHANUM4Display<'a, T> {
+    fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits) {
+        let [d1, d2, d3] = split_temperature(weather.main.temp);
+        self.ht16k33
+            .update_buffer_with_char(Index::One, AsciiChar::new(d1));
+        self.ht16k33
+            .update_buffer_with_char(Index::Two, AsciiChar::new(d2));
+        self.ht16k33
+            .update_buffer_with_char(Index::Three, AsciiChar::new(d3));
+        self.ht16k33
+            .update_buffer_with_char(Index::Four, AsciiChar::new(units.as_char()));
+
+        self.ht16k33.write_display_buffer().unwrap();
+
+        let lux = self.light_sensor.read_lux().unwrap();
+        self.set_brightness(lux);
+    }
+}
+
+// If the temperature can be represented with two digits (i.e. 0<=t<=99)
+// then leave a gap between the digits and the temperature char
+// If the temperature needs three digits (or the negative sign) then skip the gap
+// If the temperature is 1 digit then leave a gap either side
+// If the temperature is negative 1 digit then add a negative sign before and a gap after
+fn split_temperature(temp: f32) -> [char; 3] {
+    let is_negative = temp < 0.;
+    let zero_char_as_u8 = 48;
+
+    let temp = if is_negative { -temp } else { temp };
+
+    let d3 = ((temp.round() as u16 % 10) as u8 + zero_char_as_u8) as char;
+    let d2 = ((temp.round() as u16 / 10) as u8 % 10 + zero_char_as_u8) as char;
+    let d1 = ((temp.round() as u16 / 100) as u8 % 10 + zero_char_as_u8) as char;
+
+    let (d1, d2, d3) = if (is_negative && temp >= 10.0) || temp > 100. {
+        (d1, d2, d3)
+    } else {
+        (d2, d3, ' ')
+    };
+    let d1 = if is_negative { '-' } else { d1 };
+
+    let d1 = if d1 == '0' { ' ' } else { d1 };
+
+    // TODO: Explore degree symbol instead of space
+    // To emulate a degree symbol use the following:
+    // 0b XNMLKJIHGGFEDCBA>
+    // 0b X000000011100011
+
+    [d1, d2, d3]
 }
 
 fn truncate_to_characters(s: &str, length: usize) -> String {
@@ -369,5 +469,17 @@ mod tests {
         assert_eq!(truncate_to_characters("abcdefg", 5), "a'efg");
         assert_eq!(truncate_to_characters("Tornado", 7), "Tornado");
         assert_eq!(truncate_to_characters("Thunderstorm", 7), "T'storm");
+    }
+
+    #[test]
+    fn test_split_temperature() {
+        assert_eq!(split_temperature(46.0), ['4', '6', ' ']);
+        assert_eq!(split_temperature(123.0), ['1', '2', '3']);
+        assert_eq!(split_temperature(123.4), ['1', '2', '3']);
+        assert_eq!(split_temperature(275.4), ['2', '7', '5']);
+        assert_eq!(split_temperature(1.4), [' ', '1', ' ']);
+        assert_eq!(split_temperature(-1.4), ['-', '1', ' ']);
+        assert_eq!(split_temperature(-12.4), ['-', '1', '2']);
+        // assert_eq!(split_temperature(-123.4), ['-', '1', '2']); // TODO: should panic
     }
 }

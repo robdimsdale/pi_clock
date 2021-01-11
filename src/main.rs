@@ -16,6 +16,8 @@ const CONSOLE_DISPLAY_TYPE: &'static str = "console";
 const HD44780_DISPLAY_TYPE: &'static str = "hd44780";
 #[cfg(target_arch = "arm")]
 const ILI9341_DISPLAY_TYPE: &'static str = "ili9341";
+#[cfg(target_arch = "arm")]
+const ALPHANUM4_DISPLAY_TYPE: &'static str = "alphanum4";
 
 const RANDOM_LIGHT_SENSOR_TYPE: &'static str = "random";
 const TIME_LIGHT_SENSOR_TYPE: &'static str = "time";
@@ -88,6 +90,20 @@ fn main() {
                 _ => (&args[1]).parse().unwrap_or(DEFAULT_BRIGHTNESS),
             };
             pi_clock::DisplayType::ILI9341(pi_clock::ILI9341Display::new(
+                brightness,
+                &mut light_sensor,
+            ))
+        }
+
+        #[cfg(target_arch = "arm")]
+        ALPHANUM4_DISPLAY_TYPE => {
+            let args: Vec<String> = env::args().collect();
+
+            let brightness = match args.len() {
+                0..=1 => DEFAULT_BRIGHTNESS,
+                _ => (&args[1]).parse().unwrap_or(DEFAULT_BRIGHTNESS),
+            };
+            pi_clock::DisplayType::ALPHANUM4(pi_clock::ALPHANUM4Display::new(
                 brightness,
                 &mut light_sensor,
             ))
