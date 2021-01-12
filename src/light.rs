@@ -46,19 +46,19 @@ pub enum LightSensorType {
 }
 
 impl LightSensor for LightSensorType {
-    fn read_lux(&mut self) -> Result<f32, Box<dyn Error>> {
+    fn read_light_normalized(&mut self) -> Result<f32, Box<dyn Error>> {
         match &mut *self {
-            Self::Random(sensor) => sensor.read_lux(),
-            Self::Time(sensor) => sensor.read_lux(),
+            Self::Random(sensor) => sensor.read_light_normalized(),
+            Self::Time(sensor) => sensor.read_light_normalized(),
             #[cfg(target_arch = "arm")]
-            Self::VEML7700(sensor) => sensor.read_lux(),
+            Self::VEML7700(sensor) => sensor.read_light_normalized(),
         }
     }
 }
 
 // Returns a value between 0 and 1
 pub trait LightSensor {
-    fn read_lux(&mut self) -> Result<f32, Box<dyn Error>>;
+    fn read_light_normalized(&mut self) -> Result<f32, Box<dyn Error>>;
 }
 
 pub struct TimeLightSensor {}
@@ -70,7 +70,7 @@ impl TimeLightSensor {
 }
 
 impl LightSensor for TimeLightSensor {
-    fn read_lux(&mut self) -> Result<f32, Box<dyn Error>> {
+    fn read_light_normalized(&mut self) -> Result<f32, Box<dyn Error>> {
         time_based_brightness_for_time(&Local::now().time())
     }
 }
@@ -142,7 +142,7 @@ impl VEML7700LightSensor {
 
 #[cfg(target_arch = "arm")]
 impl LightSensor for VEML7700LightSensor {
-    fn read_lux(&mut self) -> Result<f32, Box<dyn Error>> {
+    fn read_light_normalized(&mut self) -> Result<f32, Box<dyn Error>> {
         Ok(normalize_lux(self.sensor.read_lux().unwrap()))
     }
 }
@@ -158,7 +158,7 @@ impl RandomLightSensor {
 }
 
 impl LightSensor for RandomLightSensor {
-    fn read_lux(&mut self) -> Result<f32, Box<dyn Error>> {
+    fn read_light_normalized(&mut self) -> Result<f32, Box<dyn Error>> {
         let val = self.rng.gen_range(MIN_LUX..MAX_LUX);
         Ok(normalize_lux(val))
     }

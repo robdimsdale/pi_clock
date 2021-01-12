@@ -5,12 +5,6 @@ use chrono::{DateTime, Datelike, Local, Month, Timelike};
 use num_traits::cast::FromPrimitive;
 
 #[cfg(target_arch = "arm")]
-use adafruit_7segment::{
-    AsciiChar as SevenSegmentAsciiChar, Index as SevenSegmentIndex, SevenSegment,
-};
-#[cfg(target_arch = "arm")]
-use adafruit_alphanum4::{AlphaNum4, AsciiChar as AlphaNum4AsciiChar, Index as AlphaNum4Index};
-#[cfg(target_arch = "arm")]
 use embedded_graphics::{
     egrectangle, egtext, fonts::Font12x16, fonts::Font24x32, pixelcolor::Rgb565, prelude::*,
     primitive_style, text_style,
@@ -114,7 +108,10 @@ impl<'a, T: LightSensor> Display for ConsoleDisplay<'a, T> {
         println!("|{}|", second_row);
         println!("-{}-", std::iter::repeat("-").take(16).collect::<String>());
 
-        println!("Current light: {}", self.light_sensor.read_lux().unwrap());
+        println!(
+            "Current light: {}",
+            self.light_sensor.read_light_normalized().unwrap()
+        );
     }
 }
 
@@ -202,7 +199,8 @@ impl<'a, T: LightSensor> HD44780Display<'a, T> {
     }
 
     fn set_brightness(&mut self, brightness: f32) {
-        // TODO: Validate 0 <= brightness <= 1
+        println!("Brightness: {}", brightness);
+
         self.brightness_pwm
             .set_duty_cycle(brightness as f64)
             .expect("failed to set brightness");
@@ -255,10 +253,9 @@ impl<'a, T: LightSensor> Display for HD44780Display<'a, T> {
             .write_bytes(&second_row_as_bytes, &mut Delay)
             .expect("failed to write to display");
 
-        let lux = self.light_sensor.read_lux().unwrap();
+        let brightness = self.light_sensor.read_light_normalized().unwrap();
         let min_brightness = 0.01;
-        let brightness = lux.max(min_brightness);
-        println!("Current lux: {}, brightness: {}", lux, brightness);
+        let brightness = brightness.max(min_brightness);
 
         self.set_brightness(brightness);
     }
@@ -312,7 +309,8 @@ impl<'a, T: LightSensor> ILI9341Display<'a, T> {
     }
 
     fn set_brightness(&mut self, brightness: f32) {
-        // TODO: Validate 0 <= brightness <= 1
+        println!("LED brightness: {}", brightness);
+
         self.brightness_pwm
             .set_duty_cycle(brightness as f64)
             .expect("failed to set brightness");
@@ -357,9 +355,9 @@ impl<'a, T: LightSensor> Display for ILI9341Display<'a, T> {
         time_text.draw(&mut self.display).unwrap();
         other_text.draw(&mut self.display).unwrap();
 
-        let lux = self.light_sensor.read_lux().unwrap();
-        let brightness = (lux.min(1000.0)).max(1.0) / 1000.0;
-        println!("Current lux: {}, brightness: {}", lux, brightness);
+        let brightness = self.light_sensor.read_light_normalized().unwrap();
+        let min_brightness = 0.01;
+        let brightness = brightness.max(min_brightness);
 
         self.set_brightness(brightness);
     }
@@ -397,7 +395,10 @@ impl<'a, T: LightSensor> AlphaNum4Display<'a, T> {
         let level = (brightness * 15.0).round() as u8;
         let dimming = ht16k33::Dimming::from_u8(level).unwrap();
 
-        println!("Current lux: {}, dimming level: {}/16", brightness, level);
+        println!(
+            "Current light level: {}, dimming level: {}/16",
+            brightness, level
+        );
 
         self.ht16k33.set_dimming(dimming).unwrap();
     }
@@ -409,29 +410,29 @@ impl<'a, T: LightSensor> Display for AlphaNum4Display<'a, T> {
         let [d1, d2, d3] = split_temperature(weather.main.temp);
         adafruit_alphanum4::AlphaNum4::update_buffer_with_char(
             &mut self.ht16k33,
-            AlphaNum4Index::One,
-            AlphaNum4AsciiChar::new(d1),
+            adafruit_alphanum4::Index::One,
+            adafruit_alphanum4::AsciiChar::new(d1),
         );
         adafruit_alphanum4::AlphaNum4::update_buffer_with_char(
             &mut self.ht16k33,
-            AlphaNum4Index::Two,
-            AlphaNum4AsciiChar::new(d2),
+            adafruit_alphanum4::Index::Two,
+            adafruit_alphanum4::AsciiChar::new(d2),
         );
         adafruit_alphanum4::AlphaNum4::update_buffer_with_char(
             &mut self.ht16k33,
-            AlphaNum4Index::Three,
-            AlphaNum4AsciiChar::new(d3),
+            adafruit_alphanum4::Index::Three,
+            adafruit_alphanum4::AsciiChar::new(d3),
         );
         adafruit_alphanum4::AlphaNum4::update_buffer_with_char(
             &mut self.ht16k33,
-            AlphaNum4Index::Four,
-            AlphaNum4AsciiChar::new(units.as_char()),
+            adafruit_alphanum4::Index::Four,
+            adafruit_alphanum4::AsciiChar::new(units.as_char()),
         );
 
         self.ht16k33.write_display_buffer().unwrap();
 
-        let lux = self.light_sensor.read_lux().unwrap();
-        self.set_brightness(lux);
+        let brightness = self.light_sensor.read_light_normalized().unwrap();
+        self.set_brightness(brightness);
     }
 }
 
@@ -467,7 +468,7 @@ impl<'a, T: LightSensor> SevenSegment4Display<'a, T> {
         let level = (brightness * 15.0).round() as u8;
         let dimming = ht16k33::Dimming::from_u8(level).unwrap();
 
-        println!("Current lux: {}, dimming level: {}/16", brightness, level);
+        println!("Brightness: {}, dimming level: {}/16", brightness, level);
 
         self.ht16k33.set_dimming(dimming).unwrap();
     }
@@ -479,29 +480,29 @@ impl<'a, T: LightSensor> Display for SevenSegment4Display<'a, T> {
         let [d1, d2, d3, d4] = split_time(time);
         adafruit_7segment::SevenSegment::update_buffer_with_digit(
             &mut self.ht16k33,
-            SevenSegmentIndex::One,
+            adafruit_7segment::Index::One,
             d1,
         );
         adafruit_7segment::SevenSegment::update_buffer_with_digit(
             &mut self.ht16k33,
-            SevenSegmentIndex::Two,
+            adafruit_7segment::Index::Two,
             d2,
         );
         adafruit_7segment::SevenSegment::update_buffer_with_digit(
             &mut self.ht16k33,
-            SevenSegmentIndex::Three,
+            adafruit_7segment::Index::Three,
             d3,
         );
         adafruit_7segment::SevenSegment::update_buffer_with_digit(
             &mut self.ht16k33,
-            SevenSegmentIndex::Four,
+            adafruit_7segment::Index::Four,
             d4,
         );
         adafruit_7segment::SevenSegment::update_buffer_with_colon(&mut self.ht16k33, true);
         self.ht16k33.write_display_buffer().unwrap();
 
-        let lux = self.light_sensor.read_lux().unwrap();
-        self.set_brightness(lux);
+        let brightness = self.light_sensor.read_light_normalized().unwrap();
+        self.set_brightness(brightness);
     }
 }
 
