@@ -3,9 +3,9 @@ mod light;
 mod weather;
 
 use chrono::Local;
-pub use display::{ConsoleDisplay, Display, DisplayType};
 #[cfg(target_arch = "arm")]
-pub use display::{HD44780Display, ILI9341Display,ALPHANUM4Display};
+pub use display::{AlphaNum4Display, HD44780Display, ILI9341Display, SevenSegment4Display};
+pub use display::{ConsoleDisplay, Display, DisplayType};
 #[cfg(target_arch = "arm")]
 pub use light::VEML7700LightSensor;
 pub use light::{LightSensor, LightSensorType, RandomLightSensor, TimeLightSensor};

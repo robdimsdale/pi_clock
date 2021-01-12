@@ -18,6 +18,8 @@ const HD44780_DISPLAY_TYPE: &'static str = "hd44780";
 const ILI9341_DISPLAY_TYPE: &'static str = "ili9341";
 #[cfg(target_arch = "arm")]
 const ALPHANUM4_DISPLAY_TYPE: &'static str = "alphanum4";
+#[cfg(target_arch = "arm")]
+const SEVEN_SEGMENT_4_DISPLAY_TYPE: &'static str = "seven_segment4";
 
 const RANDOM_LIGHT_SENSOR_TYPE: &'static str = "random";
 const TIME_LIGHT_SENSOR_TYPE: &'static str = "time";
@@ -103,7 +105,21 @@ fn main() {
                 0..=1 => DEFAULT_BRIGHTNESS,
                 _ => (&args[1]).parse().unwrap_or(DEFAULT_BRIGHTNESS),
             };
-            pi_clock::DisplayType::ALPHANUM4(pi_clock::ALPHANUM4Display::new(
+            pi_clock::DisplayType::AlphaNum4(pi_clock::AlphaNum4Display::new(
+                brightness,
+                &mut light_sensor,
+            ))
+        }
+
+        #[cfg(target_arch = "arm")]
+        SEVEN_SEGMENT_4_DISPLAY_TYPE => {
+            let args: Vec<String> = env::args().collect();
+
+            let brightness = match args.len() {
+                0..=1 => DEFAULT_BRIGHTNESS,
+                _ => (&args[1]).parse().unwrap_or(DEFAULT_BRIGHTNESS),
+            };
+            pi_clock::DisplayType::SevenSegment4(pi_clock::SevenSegment4Display::new(
                 brightness,
                 &mut light_sensor,
             ))

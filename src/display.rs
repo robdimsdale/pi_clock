@@ -5,7 +5,11 @@ use chrono::{DateTime, Datelike, Local, Month, Timelike};
 use num_traits::cast::FromPrimitive;
 
 #[cfg(target_arch = "arm")]
-use adafruit_alphanum4::{AlphaNum4, AsciiChar, Index};
+use adafruit_7segment::{
+    AsciiChar as SevenSegmentAsciiChar, Index as SevenSegmentIndex, SevenSegment,
+};
+#[cfg(target_arch = "arm")]
+use adafruit_alphanum4::{AlphaNum4, AsciiChar as AlphaNum4AsciiChar, Index as AlphaNum4Index};
 #[cfg(target_arch = "arm")]
 use embedded_graphics::{
     egrectangle, egtext, fonts::Font12x16, fonts::Font24x32, pixelcolor::Rgb565, prelude::*,
@@ -38,7 +42,9 @@ pub enum DisplayType<'a, T: LightSensor> {
     #[cfg(target_arch = "arm")]
     ILI9341(ILI9341Display<'a, T>),
     #[cfg(target_arch = "arm")]
-    ALPHANUM4(ALPHANUM4Display<'a, T>),
+    AlphaNum4(AlphaNum4Display<'a, T>),
+    #[cfg(target_arch = "arm")]
+    SevenSegment4(SevenSegment4Display<'a, T>),
 }
 
 impl<'a, T: LightSensor> DisplayType<'a, T> {
@@ -55,7 +61,9 @@ impl<'a, T: LightSensor> DisplayType<'a, T> {
             #[cfg(target_arch = "arm")]
             Self::ILI9341(display) => display.print(time, weather, units),
             #[cfg(target_arch = "arm")]
-            Self::ALPHANUM4(display) => display.print(time, weather, units),
+            Self::AlphaNum4(display) => display.print(time, weather, units),
+            #[cfg(target_arch = "arm")]
+            Self::SevenSegment4(display) => display.print(time, weather, units),
         }
     }
 }
@@ -358,17 +366,17 @@ impl<'a, T: LightSensor> Display for ILI9341Display<'a, T> {
 }
 
 #[cfg(target_arch = "arm")]
-pub struct ALPHANUM4Display<'a, T: LightSensor> {
+pub struct AlphaNum4Display<'a, T: LightSensor> {
     ht16k33: HT16K33<I2cdev>,
 
     light_sensor: &'a mut T,
 }
 
 #[cfg(target_arch = "arm")]
-impl<'a, T: LightSensor> ALPHANUM4Display<'a, T> {
-    pub fn new(brightness: f64, light_sensor: &'a mut T) -> ALPHANUM4Display<'a, T> {
+impl<'a, T: LightSensor> AlphaNum4Display<'a, T> {
+    pub fn new(brightness: f64, light_sensor: &'a mut T) -> AlphaNum4Display<'a, T> {
         // The I2C device address.
-        let address = 0x70;
+        let address = 0x71;
 
         // Create an I2C device.
         let mut i2c = I2cdev::new("/dev/i2c-1").unwrap();
@@ -379,7 +387,7 @@ impl<'a, T: LightSensor> ALPHANUM4Display<'a, T> {
 
         ht16k33.set_display(ht16k33::Display::ON).unwrap();
 
-        ALPHANUM4Display {
+        AlphaNum4Display {
             ht16k33: ht16k33,
             light_sensor: light_sensor,
         }
@@ -396,23 +404,118 @@ impl<'a, T: LightSensor> ALPHANUM4Display<'a, T> {
 }
 
 #[cfg(target_arch = "arm")]
-impl<'a, T: LightSensor> Display for ALPHANUM4Display<'a, T> {
+impl<'a, T: LightSensor> Display for AlphaNum4Display<'a, T> {
     fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits) {
         let [d1, d2, d3] = split_temperature(weather.main.temp);
-        self.ht16k33
-            .update_buffer_with_char(Index::One, AsciiChar::new(d1));
-        self.ht16k33
-            .update_buffer_with_char(Index::Two, AsciiChar::new(d2));
-        self.ht16k33
-            .update_buffer_with_char(Index::Three, AsciiChar::new(d3));
-        self.ht16k33
-            .update_buffer_with_char(Index::Four, AsciiChar::new(units.as_char()));
+        adafruit_alphanum4::AlphaNum4::update_buffer_with_char(
+            &mut self.ht16k33,
+            AlphaNum4Index::One,
+            AlphaNum4AsciiChar::new(d1),
+        );
+        adafruit_alphanum4::AlphaNum4::update_buffer_with_char(
+            &mut self.ht16k33,
+            AlphaNum4Index::Two,
+            AlphaNum4AsciiChar::new(d2),
+        );
+        adafruit_alphanum4::AlphaNum4::update_buffer_with_char(
+            &mut self.ht16k33,
+            AlphaNum4Index::Three,
+            AlphaNum4AsciiChar::new(d3),
+        );
+        adafruit_alphanum4::AlphaNum4::update_buffer_with_char(
+            &mut self.ht16k33,
+            AlphaNum4Index::Four,
+            AlphaNum4AsciiChar::new(units.as_char()),
+        );
 
         self.ht16k33.write_display_buffer().unwrap();
 
         let lux = self.light_sensor.read_lux().unwrap();
         self.set_brightness(lux);
     }
+}
+
+#[cfg(target_arch = "arm")]
+pub struct SevenSegment4Display<'a, T: LightSensor> {
+    ht16k33: HT16K33<I2cdev>,
+
+    light_sensor: &'a mut T,
+}
+
+#[cfg(target_arch = "arm")]
+impl<'a, T: LightSensor> SevenSegment4Display<'a, T> {
+    pub fn new(brightness: f64, light_sensor: &'a mut T) -> SevenSegment4Display<'a, T> {
+        // The I2C device address.
+        let address = 0x70;
+
+        // Create an I2C device.
+        let mut i2c = I2cdev::new("/dev/i2c-1").unwrap();
+        i2c.set_slave_address(address as u16).unwrap();
+
+        let mut ht16k33 = HT16K33::new(i2c, address);
+        ht16k33.initialize().unwrap();
+
+        ht16k33.set_display(ht16k33::Display::ON).unwrap();
+
+        SevenSegment4Display {
+            ht16k33: ht16k33,
+            light_sensor: light_sensor,
+        }
+    }
+
+    fn set_brightness(&mut self, brightness: f32) {
+        let level = (brightness * 15.0).round() as u8;
+        let dimming = ht16k33::Dimming::from_u8(level).unwrap();
+
+        println!("Current lux: {}, dimming level: {}/16", brightness, level);
+
+        self.ht16k33.set_dimming(dimming).unwrap();
+    }
+}
+
+#[cfg(target_arch = "arm")]
+impl<'a, T: LightSensor> Display for SevenSegment4Display<'a, T> {
+    fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits) {
+        let [d1, d2, d3, d4] = split_time(time);
+        adafruit_7segment::SevenSegment::update_buffer_with_digit(
+            &mut self.ht16k33,
+            SevenSegmentIndex::One,
+            d1,
+        );
+        adafruit_7segment::SevenSegment::update_buffer_with_digit(
+            &mut self.ht16k33,
+            SevenSegmentIndex::Two,
+            d2,
+        );
+        adafruit_7segment::SevenSegment::update_buffer_with_digit(
+            &mut self.ht16k33,
+            SevenSegmentIndex::Three,
+            d3,
+        );
+        adafruit_7segment::SevenSegment::update_buffer_with_digit(
+            &mut self.ht16k33,
+            SevenSegmentIndex::Four,
+            d4,
+        );
+        adafruit_7segment::SevenSegment::update_buffer_with_colon(&mut self.ht16k33, true);
+        self.ht16k33.write_display_buffer().unwrap();
+
+        let lux = self.light_sensor.read_lux().unwrap();
+        self.set_brightness(lux);
+    }
+}
+
+fn split_time(t: &DateTime<Local>) -> [u8; 4] {
+    let hour = t.hour();
+    let minute = t.minute();
+
+    let d4 = (minute % 10) as u8;
+    let d3 = (minute / 10) as u8 % 10;
+
+    let d2 = (hour % 10) as u8;
+    let d1 = (hour / 10) as u8 % 10;
+
+    [d1, d2, d3, d4]
 }
 
 // If the temperature can be represented with two digits (i.e. 0<=t<=99)
@@ -481,5 +584,25 @@ mod tests {
         assert_eq!(split_temperature(-1.4), ['-', '1', ' ']);
         assert_eq!(split_temperature(-12.4), ['-', '1', '2']);
         // assert_eq!(split_temperature(-123.4), ['-', '1', '2']); // TODO: should panic
+    }
+
+    #[test]
+    fn test_split_time() {
+        assert_eq!(
+            split_time(&Local::now().with_hour(1).unwrap().with_minute(3).unwrap()),
+            [0, 1, 0, 3]
+        );
+        assert_eq!(
+            split_time(&Local::now().with_hour(0).unwrap().with_minute(0).unwrap()),
+            [0, 0, 0, 0]
+        );
+        assert_eq!(
+            split_time(&Local::now().with_hour(12).unwrap().with_minute(34).unwrap()),
+            [1, 2, 3, 4]
+        );
+        assert_eq!(
+            split_time(&Local::now().with_hour(23).unwrap().with_minute(59).unwrap()),
+            [2, 3, 5, 9]
+        );
     }
 }
