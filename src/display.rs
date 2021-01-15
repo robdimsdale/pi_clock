@@ -39,6 +39,7 @@ pub enum DisplayType<'a, T: LightSensor> {
     AlphaNum4(AlphaNum4Display<'a, T>),
     #[cfg(target_arch = "arm")]
     SevenSegment4(SevenSegment4Display<'a, T>),
+    Composite(&'a mut [&'a mut DisplayType<'a, T>]),
 }
 
 impl<'a, T: LightSensor> DisplayType<'a, T> {
@@ -58,6 +59,11 @@ impl<'a, T: LightSensor> DisplayType<'a, T> {
             Self::AlphaNum4(display) => display.print(time, weather, units),
             #[cfg(target_arch = "arm")]
             Self::SevenSegment4(display) => display.print(time, weather, units),
+            Self::Composite(displays) => {
+                for d in displays.iter_mut() {
+                    d.print(time, weather, units);
+                }
+            }
         }
     }
 }

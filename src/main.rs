@@ -61,67 +61,77 @@ fn main() {
         }
     };
 
-    let display_type_str = env::var(DISPLAY_TYPE_VAR).unwrap_or(DEFAULT_DISPLAY_TYPE.to_owned());
+    //     let mut light_sensor1 = new_light_sensor(light_sensor_type_str.as_str());
+    // let mut light_sensor2 = new_light_sensor(light_sensor_type_str.as_str());
+    // let mut light_sensor3 = new_light_sensor(light_sensor_type_str.as_str());
+    let mut d1 = pi_clock::DisplayType::Console(pi_clock::ConsoleDisplay::new(&light_sensor));
+    let mut d2 = pi_clock::DisplayType::Console(pi_clock::ConsoleDisplay::new(&light_sensor));
+    let mut d3 = pi_clock::DisplayType::Console(pi_clock::ConsoleDisplay::new(&light_sensor));
 
-    let mut display = match display_type_str.as_str() {
-        CONSOLE_DISPLAY_TYPE => {
-            pi_clock::DisplayType::Console(pi_clock::ConsoleDisplay::new(&light_sensor))
-        }
+    let mut displays = vec![&mut d1, &mut d2, &mut d3];
+    let mut display = pi_clock::DisplayType::Composite(displays.as_mut_slice());
 
-        #[cfg(target_arch = "arm")]
-        HD44780_DISPLAY_TYPE => {
-            let args: Vec<String> = env::args().collect();
+    // let display_type_str = env::var(DISPLAY_TYPE_VAR).unwrap_or(DEFAULT_DISPLAY_TYPE.to_owned());
 
-            let brightness = match args.len() {
-                0..=1 => DEFAULT_BRIGHTNESS,
-                _ => (&args[1]).parse().unwrap_or(DEFAULT_BRIGHTNESS),
-            };
+    // let mut display = match display_type_str.as_str() {
+    //     CONSOLE_DISPLAY_TYPE => {
+    //         pi_clock::DisplayType::Console(pi_clock::ConsoleDisplay::new(&light_sensor))
+    //     }
 
-            pi_clock::DisplayType::HD44780(pi_clock::HD44780Display::new(brightness, &light_sensor))
-        }
+    //     #[cfg(target_arch = "arm")]
+    //     HD44780_DISPLAY_TYPE => {
+    //         let args: Vec<String> = env::args().collect();
 
-        #[cfg(target_arch = "arm")]
-        ILI9341_DISPLAY_TYPE => {
-            let args: Vec<String> = env::args().collect();
+    //         let brightness = match args.len() {
+    //             0..=1 => DEFAULT_BRIGHTNESS,
+    //             _ => (&args[1]).parse().unwrap_or(DEFAULT_BRIGHTNESS),
+    //         };
 
-            let brightness = match args.len() {
-                0..=1 => DEFAULT_BRIGHTNESS,
-                _ => (&args[1]).parse().unwrap_or(DEFAULT_BRIGHTNESS),
-            };
-            pi_clock::DisplayType::ILI9341(pi_clock::ILI9341Display::new(brightness, &light_sensor))
-        }
+    //         pi_clock::DisplayType::HD44780(pi_clock::HD44780Display::new(brightness, &light_sensor))
+    //     }
 
-        #[cfg(target_arch = "arm")]
-        ALPHANUM4_DISPLAY_TYPE => {
-            let args: Vec<String> = env::args().collect();
+    //     #[cfg(target_arch = "arm")]
+    //     ILI9341_DISPLAY_TYPE => {
+    //         let args: Vec<String> = env::args().collect();
 
-            let brightness = match args.len() {
-                0..=1 => DEFAULT_BRIGHTNESS,
-                _ => (&args[1]).parse().unwrap_or(DEFAULT_BRIGHTNESS),
-            };
-            pi_clock::DisplayType::AlphaNum4(pi_clock::AlphaNum4Display::new(
-                brightness,
-                &light_sensor,
-            ))
-        }
+    //         let brightness = match args.len() {
+    //             0..=1 => DEFAULT_BRIGHTNESS,
+    //             _ => (&args[1]).parse().unwrap_or(DEFAULT_BRIGHTNESS),
+    //         };
+    //         pi_clock::DisplayType::ILI9341(pi_clock::ILI9341Display::new(brightness, &light_sensor))
+    //     }
 
-        #[cfg(target_arch = "arm")]
-        SEVEN_SEGMENT_4_DISPLAY_TYPE => {
-            let args: Vec<String> = env::args().collect();
+    //     #[cfg(target_arch = "arm")]
+    //     ALPHANUM4_DISPLAY_TYPE => {
+    //         let args: Vec<String> = env::args().collect();
 
-            let brightness = match args.len() {
-                0..=1 => DEFAULT_BRIGHTNESS,
-                _ => (&args[1]).parse().unwrap_or(DEFAULT_BRIGHTNESS),
-            };
-            pi_clock::DisplayType::SevenSegment4(pi_clock::SevenSegment4Display::new(
-                brightness,
-                &light_sensor,
-            ))
-        }
-        _ => {
-            panic!("Unrecognized display type: {}", display_type_str)
-        }
-    };
+    //         let brightness = match args.len() {
+    //             0..=1 => DEFAULT_BRIGHTNESS,
+    //             _ => (&args[1]).parse().unwrap_or(DEFAULT_BRIGHTNESS),
+    //         };
+    //         pi_clock::DisplayType::AlphaNum4(pi_clock::AlphaNum4Display::new(
+    //             brightness,
+    //             &light_sensor,
+    //         ))
+    //     }
+
+    //     #[cfg(target_arch = "arm")]
+    //     SEVEN_SEGMENT_4_DISPLAY_TYPE => {
+    //         let args: Vec<String> = env::args().collect();
+
+    //         let brightness = match args.len() {
+    //             0..=1 => DEFAULT_BRIGHTNESS,
+    //             _ => (&args[1]).parse().unwrap_or(DEFAULT_BRIGHTNESS),
+    //         };
+    //         pi_clock::DisplayType::SevenSegment4(pi_clock::SevenSegment4Display::new(
+    //             brightness,
+    //             &light_sensor,
+    //         ))
+    //     }
+    //     _ => {
+    //         panic!("Unrecognized display type: {}", display_type_str)
+    //     }
+    // };
 
     println!("Initialization complete");
 
