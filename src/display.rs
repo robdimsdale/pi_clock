@@ -67,11 +67,11 @@ pub trait Display {
 }
 
 pub struct ConsoleDisplay<'a, T: LightSensor> {
-    light_sensor: &'a mut T,
+    light_sensor: &'a T,
 }
 
 impl<'a, T: LightSensor> ConsoleDisplay<'a, T> {
-    pub fn new(light_sensor: &'a mut T) -> ConsoleDisplay<'a, T> {
+    pub fn new(light_sensor: &'a T) -> ConsoleDisplay<'a, T> {
         ConsoleDisplay {
             light_sensor: light_sensor,
         }
@@ -130,12 +130,12 @@ pub struct HD44780Display<'a, T: LightSensor> {
 
     brightness_pwm: Pwm,
 
-    light_sensor: &'a mut T,
+    light_sensor: &'a T,
 }
 
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> HD44780Display<'a, T> {
-    pub fn new(brightness: f64, light_sensor: &'a mut T) -> HD44780Display<'a, T> {
+    pub fn new(brightness: f64, light_sensor: &'a T) -> HD44780Display<'a, T> {
         // Using BCM numbers
         // i.e. pin 0 corresponds to wiringpi 30 and physical 27
 
@@ -268,12 +268,12 @@ pub struct ILI9341Display<'a, T: LightSensor> {
         linux_embedded_hal::Pin,
     >,
     brightness_pwm: Pwm,
-    light_sensor: &'a mut T,
+    light_sensor: &'a T,
 }
 
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> ILI9341Display<'a, T> {
-    pub fn new(brightness: f64, light_sensor: &'a mut T) -> Self {
+    pub fn new(brightness: f64, light_sensor: &'a T) -> Self {
         // pwm0 is pin 18
         let pwm0 = Pwm::with_frequency(Channel::Pwm0, 20000.0, brightness, Polarity::Normal, false)
             .expect("failed to initialize PWM 0 (brightness)");
@@ -367,12 +367,12 @@ impl<'a, T: LightSensor> Display for ILI9341Display<'a, T> {
 pub struct AlphaNum4Display<'a, T: LightSensor> {
     ht16k33: HT16K33<I2cdev>,
 
-    light_sensor: &'a mut T,
+    light_sensor: &'a T,
 }
 
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> AlphaNum4Display<'a, T> {
-    pub fn new(brightness: f64, light_sensor: &'a mut T) -> AlphaNum4Display<'a, T> {
+    pub fn new(brightness: f64, light_sensor: &'a T) -> AlphaNum4Display<'a, T> {
         // The I2C device address.
         let address = 0x71;
 
@@ -440,12 +440,12 @@ impl<'a, T: LightSensor> Display for AlphaNum4Display<'a, T> {
 pub struct SevenSegment4Display<'a, T: LightSensor> {
     ht16k33: HT16K33<I2cdev>,
 
-    light_sensor: &'a mut T,
+    light_sensor: &'a T,
 }
 
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> SevenSegment4Display<'a, T> {
-    pub fn new(brightness: f64, light_sensor: &'a mut T) -> SevenSegment4Display<'a, T> {
+    pub fn new(brightness: f64, light_sensor: &'a T) -> SevenSegment4Display<'a, T> {
         // The I2C device address.
         let address = 0x70;
 

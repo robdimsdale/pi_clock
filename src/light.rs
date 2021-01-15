@@ -21,6 +21,7 @@ use chrono::{Local, NaiveTime};
 use lazy_static::*;
 use rand::prelude::*;
 use std::error::Error;
+use std::sync::Mutex;
 
 #[cfg(target_arch = "arm")]
 use linux_embedded_hal::I2cdev;
@@ -46,8 +47,8 @@ pub enum LightSensorType {
 }
 
 impl LightSensor for LightSensorType {
-    fn read_light_normalized(&mut self) -> Result<f32, Box<dyn Error>> {
-        match &mut *self {
+    fn read_light_normalized(&self) -> Result<f32, Box<dyn Error>> {
+        match &self {
             Self::Random(sensor) => sensor.read_light_normalized(),
             Self::Time(sensor) => sensor.read_light_normalized(),
             #[cfg(target_arch = "arm")]
@@ -58,7 +59,7 @@ impl LightSensor for LightSensorType {
 
 // Returns a value between 0 and 1
 pub trait LightSensor {
-    fn read_light_normalized(&mut self) -> Result<f32, Box<dyn Error>>;
+    fn read_light_normalized(&self) -> Result<f32, Box<dyn Error>>;
 }
 
 pub struct TimeLightSensor {}
@@ -70,7 +71,7 @@ impl TimeLightSensor {
 }
 
 impl LightSensor for TimeLightSensor {
-    fn read_light_normalized(&mut self) -> Result<f32, Box<dyn Error>> {
+    fn read_light_normalized(&self) -> Result<f32, Box<dyn Error>> {
         time_based_brightness_for_time(&Local::now().time())
     }
 }
@@ -126,7 +127,7 @@ fn time_based_brightness_for_time(t: &NaiveTime) -> Result<f32, Box<dyn Error>> 
 
 #[cfg(target_arch = "arm")]
 pub struct VEML7700LightSensor {
-    sensor: Veml6030<I2cdev>,
+    sensor: Mutex<Veml6030<I2cdev>>,
 }
 
 #[cfg(target_arch = "arm")]
@@ -136,30 +137,30 @@ impl VEML7700LightSensor {
         let mut sensor = Veml6030::new(dev, SlaveAddr::default());
         sensor.enable().unwrap();
 
-        VEML7700LightSensor { sensor: sensor }
+        VEML7700LightSensor { sensor: Mutex::new(sensor) }
     }
 }
 
 #[cfg(target_arch = "arm")]
 impl LightSensor for VEML7700LightSensor {
-    fn read_light_normalized(&mut self) -> Result<f32, Box<dyn Error>> {
-        Ok(normalize_lux(self.sensor.read_lux().unwrap()))
+    fn read_light_normalized(&self) -> Result<f32, Box<dyn Error>> {
+        Ok(normalize_lux(self.sensor.lock().unwrap().read_lux().unwrap()))
     }
 }
 
 pub struct RandomLightSensor {
-    rng: ThreadRng,
+    rng: Mutex<ThreadRng>,
 }
 
 impl RandomLightSensor {
     pub fn new() -> RandomLightSensor {
-        RandomLightSensor { rng: thread_rng() }
+        RandomLightSensor { rng: Mutex::new(thread_rng()) }
     }
 }
 
 impl LightSensor for RandomLightSensor {
-    fn read_light_normalized(&mut self) -> Result<f32, Box<dyn Error>> {
-        let val = self.rng.gen_range(MIN_LUX..MAX_LUX);
+    fn read_light_normalized(&self) -> Result<f32, Box<dyn Error>> {
+        let val = self.rng.lock().unwrap().gen_range(MIN_LUX..MAX_LUX);
         Ok(normalize_lux(val))
     }
 }

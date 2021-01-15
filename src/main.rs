@@ -46,7 +46,7 @@ fn main() {
     let light_sensor_type_str =
         env::var(LIGHT_SENSOR_TYPE_VAR).unwrap_or(DEFAULT_LIGHT_SENSOR_TYPE.to_owned());
 
-    let mut light_sensor = match light_sensor_type_str.as_str() {
+    let light_sensor = match light_sensor_type_str.as_str() {
         RANDOM_LIGHT_SENSOR_TYPE => {
             pi_clock::LightSensorType::Random(pi_clock::RandomLightSensor::new())
         }
@@ -65,7 +65,7 @@ fn main() {
 
     let mut display = match display_type_str.as_str() {
         CONSOLE_DISPLAY_TYPE => {
-            pi_clock::DisplayType::Console(pi_clock::ConsoleDisplay::new(&mut light_sensor))
+            pi_clock::DisplayType::Console(pi_clock::ConsoleDisplay::new(&light_sensor))
         }
 
         #[cfg(target_arch = "arm")]
@@ -77,10 +77,7 @@ fn main() {
                 _ => (&args[1]).parse().unwrap_or(DEFAULT_BRIGHTNESS),
             };
 
-            pi_clock::DisplayType::HD44780(pi_clock::HD44780Display::new(
-                brightness,
-                &mut light_sensor,
-            ))
+            pi_clock::DisplayType::HD44780(pi_clock::HD44780Display::new(brightness, &light_sensor))
         }
 
         #[cfg(target_arch = "arm")]
@@ -91,10 +88,7 @@ fn main() {
                 0..=1 => DEFAULT_BRIGHTNESS,
                 _ => (&args[1]).parse().unwrap_or(DEFAULT_BRIGHTNESS),
             };
-            pi_clock::DisplayType::ILI9341(pi_clock::ILI9341Display::new(
-                brightness,
-                &mut light_sensor,
-            ))
+            pi_clock::DisplayType::ILI9341(pi_clock::ILI9341Display::new(brightness, &light_sensor))
         }
 
         #[cfg(target_arch = "arm")]
@@ -107,7 +101,7 @@ fn main() {
             };
             pi_clock::DisplayType::AlphaNum4(pi_clock::AlphaNum4Display::new(
                 brightness,
-                &mut light_sensor,
+                &light_sensor,
             ))
         }
 
@@ -121,7 +115,7 @@ fn main() {
             };
             pi_clock::DisplayType::SevenSegment4(pi_clock::SevenSegment4Display::new(
                 brightness,
-                &mut light_sensor,
+                &light_sensor,
             ))
         }
         _ => {
