@@ -39,7 +39,7 @@ pub enum DisplayType<'a, T: LightSensor> {
     AlphaNum4(AlphaNum4Display<'a, T>),
     #[cfg(target_arch = "arm")]
     SevenSegment4(SevenSegment4Display<'a, T>),
-    Composite(&'a mut [&'a mut DisplayType<'a, T>]),
+    Composite(&'a mut [DisplayType<'a, T>]),
 }
 
 impl<'a, T: LightSensor> DisplayType<'a, T> {
@@ -141,7 +141,7 @@ pub struct HD44780Display<'a, T: LightSensor> {
 
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> HD44780Display<'a, T> {
-    pub fn new(brightness: f64, light_sensor: &'a T) -> HD44780Display<'a, T> {
+    pub fn new(light_sensor: &'a T) -> HD44780Display<'a, T> {
         // Using BCM numbers
         // i.e. pin 0 corresponds to wiringpi 30 and physical 27
 
@@ -155,9 +155,16 @@ impl<'a, T: LightSensor> HD44780Display<'a, T> {
         let g = Pin::new(16);
         let b = Pin::new(19);
 
+        let default_brightness = 1.0;
         // pwm0 is pin 18
-        let pwm0 = Pwm::with_frequency(Channel::Pwm0, 20000.0, brightness, Polarity::Normal, false)
-            .expect("failed to initialize PWM 0 (brightness)");
+        let pwm0 = Pwm::with_frequency(
+            Channel::Pwm0,
+            20000.0,
+            default_brightness,
+            Polarity::Normal,
+            false,
+        )
+        .expect("failed to initialize PWM 0 (brightness)");
 
         pwm0.enable().expect("failed to enable PWM 0 (brightness)");
 
@@ -279,10 +286,17 @@ pub struct ILI9341Display<'a, T: LightSensor> {
 
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> ILI9341Display<'a, T> {
-    pub fn new(brightness: f64, light_sensor: &'a T) -> Self {
+    pub fn new(light_sensor: &'a T) -> Self {
+        let default_brightness = 1.0;
         // pwm0 is pin 18
-        let pwm0 = Pwm::with_frequency(Channel::Pwm0, 20000.0, brightness, Polarity::Normal, false)
-            .expect("failed to initialize PWM 0 (brightness)");
+        let pwm0 = Pwm::with_frequency(
+            Channel::Pwm0,
+            20000.0,
+            default_brightness,
+            Polarity::Normal,
+            false,
+        )
+        .expect("failed to initialize PWM 0 (brightness)");
         pwm0.enable().expect("failed to enable PWM 0 (brightness)");
 
         let rs = Pin::new(24);
@@ -378,7 +392,7 @@ pub struct AlphaNum4Display<'a, T: LightSensor> {
 
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> AlphaNum4Display<'a, T> {
-    pub fn new(brightness: f64, light_sensor: &'a T) -> AlphaNum4Display<'a, T> {
+    pub fn new(light_sensor: &'a T) -> AlphaNum4Display<'a, T> {
         // The I2C device address.
         let address = 0x71;
 
@@ -451,7 +465,7 @@ pub struct SevenSegment4Display<'a, T: LightSensor> {
 
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> SevenSegment4Display<'a, T> {
-    pub fn new(brightness: f64, light_sensor: &'a T) -> SevenSegment4Display<'a, T> {
+    pub fn new(light_sensor: &'a T) -> SevenSegment4Display<'a, T> {
         // The I2C device address.
         let address = 0x70;
 

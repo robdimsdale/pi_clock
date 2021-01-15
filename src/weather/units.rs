@@ -1,3 +1,6 @@
+use std::error::Error;
+use std::str::FromStr;
+
 const UNITS_IMPERIAL: &'static str = "imperial";
 const UNITS_METRIC: &'static str = "metric";
 const UNITS_STANDARD: &'static str = "standard";
@@ -18,16 +21,20 @@ impl ToString for TemperatureUnits {
     }
 }
 
-impl TemperatureUnits {
-    pub fn from_string(s: &str) -> TemperatureUnits {
+impl FromStr for TemperatureUnits {
+    type Err = Box<dyn Error>;
+
+    fn from_str(s: &str) -> Result<TemperatureUnits, Self::Err> {
         match s {
-            UNITS_IMPERIAL => TemperatureUnits::Imperial,
-            UNITS_METRIC => TemperatureUnits::Metric,
-            UNITS_STANDARD => TemperatureUnits::Standard,
+            UNITS_IMPERIAL => Ok(TemperatureUnits::Imperial),
+            UNITS_METRIC => Ok(TemperatureUnits::Metric),
+            UNITS_STANDARD => Ok(TemperatureUnits::Standard),
             _ => panic!("Unrecognized temperature units: {}", s),
         }
     }
+}
 
+impl TemperatureUnits {
     pub fn as_char(&self) -> char {
         match self {
             Self::Imperial => 'F',
