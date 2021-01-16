@@ -1,7 +1,6 @@
+use log::{debug, info};
+use simplelog::{Config, LevelFilter, TermLogger, TerminalMode};
 use structopt::StructOpt;
-
-#[cfg(target_arch = "arm")]
-const DEFAULT_BRIGHTNESS: f64 = 0.05;
 
 const CONSOLE_DISPLAY_TYPE: &'static str = "console";
 #[cfg(target_arch = "arm")]
@@ -19,7 +18,8 @@ const TIME_LIGHT_SENSOR_TYPE: &'static str = "time";
 const VEML7700_LIGHT_SENSOR_TYPE: &'static str = "veml7700";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Initializing");
+    TermLogger::init(LevelFilter::Warn, Config::default(), TerminalMode::Mixed)?;
+    debug!("logger initialized");
 
     let args = Cli::from_args();
 
@@ -74,7 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut display = pi_clock::DisplayType::Composite(displays.as_mut_slice());
 
-    println!("Initialization complete");
+    info!("Initialization complete");
 
     pi_clock::run(
         &args.open_weather_api_key,

@@ -9,6 +9,7 @@ pub use display::{ConsoleDisplay, Display, DisplayType};
 #[cfg(target_arch = "arm")]
 pub use light::VEML7700LightSensor;
 pub use light::{LightSensor, LightSensorType, RandomLightSensor, TimeLightSensor};
+use log::{info, warn};
 use std::{thread, time};
 pub use weather::{OpenWeather, TemperatureUnits};
 
@@ -35,7 +36,7 @@ pub fn run<T: LightSensor>(
         if duration_since_last_weather > time::Duration::from_secs(WEATHER_DURATION_SECONDS) {
             last_weather_attempt = now;
 
-            println!(
+            info!(
                 "Getting updated weather ({}s since last attempt)",
                 WEATHER_DURATION_SECONDS,
             );
@@ -43,12 +44,12 @@ pub fn run<T: LightSensor>(
             if let Ok(updated_weather) =
                 weather::get_weather(&open_weather_api_key, &lat, &lon, &units)
             {
-                println!("successfully updated weather");
+                info!("successfully updated weather");
 
                 last_weather_success = last_weather_attempt;
                 weather = updated_weather
             } else {
-                println!(
+                warn!(
                     "failed to update weather (using previous weather). {}s since last success",
                     now.duration_since(last_weather_success).as_secs()
                 );

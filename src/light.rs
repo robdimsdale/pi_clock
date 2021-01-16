@@ -77,8 +77,6 @@ impl LightSensor for TimeLightSensor {
 }
 
 fn time_based_brightness_for_time(t: &NaiveTime) -> Result<f32, Box<dyn Error>> {
-    println!("---\nTrying for time: {}\n", t);
-
     let midnight = NaiveTime::from_num_seconds_from_midnight(0, 0);
 
     let full_bright_range = *MAX_LUX_START_TIME..*MAX_LUX_END_TIME;
@@ -86,12 +84,6 @@ fn time_based_brightness_for_time(t: &NaiveTime) -> Result<f32, Box<dyn Error>> 
     let full_dark_range1 = *MIN_LUX_START_TIME..(midnight - chrono::Duration::nanoseconds(1));
     let full_dark_range2 = midnight..*MIN_LUX_END_TIME;
     let dark_to_bright_range = *MIN_LUX_END_TIME..*MAX_LUX_START_TIME;
-
-    println!("full_bright_range: {:?}", full_bright_range);
-    println!("bright_to_dark_range: {:?}", bright_to_dark_range);
-    println!("full_dark_range1: {:?}", full_dark_range1);
-    println!("full_dark_range2: {:?}", full_dark_range2);
-    println!("dark_to_bright_range: {:?}", dark_to_bright_range);
 
     // Separate case for end-of-day bound as ranges are exxclusive
     if *t == midnight - chrono::Duration::nanoseconds(1) {
@@ -133,18 +125,22 @@ pub struct VEML7700LightSensor {
 #[cfg(target_arch = "arm")]
 impl VEML7700LightSensor {
     pub fn new() -> VEML7700LightSensor {
-        let dev = I2cdev::new("/dev/i2c-1").unwrap();
+        let dev = I2cdev::new("/dev/i2c-1").unwrap(); // TODO: use rppal I2C
         let mut sensor = Veml6030::new(dev, SlaveAddr::default());
         sensor.enable().unwrap();
 
-        VEML7700LightSensor { sensor: Mutex::new(sensor) }
+        VEML7700LightSensor {
+            sensor: Mutex::new(sensor),
+        }
     }
 }
 
 #[cfg(target_arch = "arm")]
 impl LightSensor for VEML7700LightSensor {
     fn read_light_normalized(&self) -> Result<f32, Box<dyn Error>> {
-        Ok(normalize_lux(self.sensor.lock().unwrap().read_lux().unwrap()))
+        Ok(normalize_lux(
+            self.sensor.lock().unwrap().read_lux().unwrap(),
+        ))
     }
 }
 
@@ -154,7 +150,9 @@ pub struct RandomLightSensor {
 
 impl RandomLightSensor {
     pub fn new() -> RandomLightSensor {
-        RandomLightSensor { rng: Mutex::new(thread_rng()) }
+        RandomLightSensor {
+            rng: Mutex::new(thread_rng()),
+        }
     }
 }
 

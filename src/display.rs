@@ -212,7 +212,7 @@ impl<'a, T: LightSensor> HD44780Display<'a, T> {
     }
 
     fn set_brightness(&mut self, brightness: f32) {
-        println!("Brightness: {}", brightness);
+        debug!("Brightness: {}", brightness);
 
         self.brightness_pwm
             .set_duty_cycle(brightness as f64)
@@ -329,7 +329,7 @@ impl<'a, T: LightSensor> ILI9341Display<'a, T> {
     }
 
     fn set_brightness(&mut self, brightness: f32) {
-        println!("LED brightness: {}", brightness);
+        debug!("LED brightness: {}", brightness);
 
         self.brightness_pwm
             .set_duty_cycle(brightness as f64)
@@ -415,7 +415,7 @@ impl<'a, T: LightSensor> AlphaNum4Display<'a, T> {
         let level = (brightness * 15.0).round() as u8;
         let dimming = ht16k33::Dimming::from_u8(level).unwrap();
 
-        println!(
+        debug!(
             "Current light level: {}, dimming level: {}/16",
             brightness, level
         );
@@ -488,7 +488,7 @@ impl<'a, T: LightSensor> SevenSegment4Display<'a, T> {
         let level = (brightness * 15.0).round() as u8;
         let dimming = ht16k33::Dimming::from_u8(level).unwrap();
 
-        println!("Brightness: {}, dimming level: {}/16", brightness, level);
+        debug!("Brightness: {}, dimming level: {}/16", brightness, level);
 
         self.ht16k33.set_dimming(dimming).unwrap();
     }
