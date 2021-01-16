@@ -13,6 +13,7 @@ use std::{thread, time};
 pub use weather::{OpenWeather, TemperatureUnits};
 
 const SLEEP_DURATION_MILLIS: u64 = 100;
+const WEATHER_DURATION_SECONDS: u64 = 600;
 
 pub fn run<T: LightSensor>(
     open_weather_api_key: &str,
@@ -31,12 +32,12 @@ pub fn run<T: LightSensor>(
         let now = time::Instant::now();
 
         let duration_since_last_weather = now.duration_since(last_weather_attempt);
-        if duration_since_last_weather > time::Duration::from_secs(600) {
+        if duration_since_last_weather > time::Duration::from_secs(WEATHER_DURATION_SECONDS) {
             last_weather_attempt = now;
 
             println!(
                 "Getting updated weather ({}s since last attempt)",
-                duration_since_last_weather.as_secs(),
+                WEATHER_DURATION_SECONDS,
             );
 
             if let Ok(updated_weather) =
