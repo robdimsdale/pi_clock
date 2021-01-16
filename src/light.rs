@@ -105,13 +105,22 @@ fn time_based_brightness_for_time(t: &NaiveTime) -> Result<f32, Box<dyn Error>> 
         let progress = time_until_full_dark.num_seconds() as f32
             / (time_since_full_bright.num_seconds() as f32
                 + time_until_full_dark.num_seconds() as f32);
-        let brightness = progress * (MAX_LUX - MIN_LUX) + MIN_LUX; // TODO: should be able to remove this
+        let brightness = progress * (MAX_LUX - MIN_LUX) + MIN_LUX;
 
         return Ok(normalize_lux(brightness));
     }
 
     if dark_to_bright_range.contains(t) {
-        return Ok(-1.0); // TODO: implement
+        let time_since_full_dark = t.signed_duration_since(*MIN_LUX_END_TIME);
+        let time_until_full_bright = MAX_LUX_START_TIME.signed_duration_since(*t);
+
+        let progress = time_since_full_dark.num_seconds() as f32
+            / (time_since_full_dark.num_seconds() as f32
+                + time_until_full_bright.num_seconds() as f32);
+
+        let brightness = progress * (MAX_LUX - MIN_LUX) + MIN_LUX;
+
+        return Ok(normalize_lux(brightness));
     }
 
     panic!("Bad time bounds!")
@@ -125,7 +134,7 @@ pub struct VEML7700LightSensor {
 #[cfg(target_arch = "arm")]
 impl VEML7700LightSensor {
     pub fn new() -> VEML7700LightSensor {
-        let dev = I2cdev::new("/dev/i2c-1").unwrap(); // TODO: use rppal I2C
+        let dev = I2cdev::new("/dev/i2c-1").unwrap();
         let mut sensor = Veml6030::new(dev, SlaveAddr::default());
         sensor.enable().unwrap();
 
@@ -166,7 +175,7 @@ impl LightSensor for RandomLightSensor {
 // Return a value between 0 and 1, truncating to MIN_LUX or MAX_LUX as necessary.
 fn normalize_lux(lux: f32) -> f32 {
     let truncated = lux.min(MAX_LUX).max(MIN_LUX);
-    (truncated - MIN_LUX) / (MAX_LUX - MIN_LUX) // TODO: handle MIN_LUX offset
+    (truncated - MIN_LUX) / (MAX_LUX - MIN_LUX)
 }
 
 #[cfg(test)]
@@ -308,51 +317,52 @@ mod tests {
             0.
         );
 
-        // TODO: implement tests below
+        // Scaling from darkness to brightness
 
-        // Scaling from brightness to darkness
+        assert_eq!(
+            time_based_brightness_for_time(&(*MIN_LUX_END_TIME)).unwrap(),
+            0.
+        );
 
-        // assert_eq!(
-        //     time_based_brightness_for_time(&(*MIN_LUX_END_TIME)).unwrap(),
-        //     FULL_DARK_TIME_BRIGHTNESS
-        // );
+        // A time close enough to the end of full darkness will round to full darkness
+        assert_eq!(
+            time_based_brightness_for_time(
+                &(*MIN_LUX_END_TIME + chrono::Duration::milliseconds(1))
+            )
+            .unwrap(),
+            0.,
+        );
 
-        // // A time close enough to the end of full darkness will round to full darkness
-        // assert_eq!(
-        //     time_based_brightness_for_time(&(*MIN_LUX_END_TIME + chrono::Duration::milliseconds(1)))
-        //         .unwrap(),
-        //     FULL_DARK_TIME_BRIGHTNESS,
-        // );
+        let quarter_dark_to_bright =
+            *MIN_LUX_END_TIME + (*MAX_LUX_START_TIME - *MIN_LUX_END_TIME) / 4;
 
-        // let quarter_bright_to_dark = *MAX_LUX_END_TIME + (*MIN_LUX_START_TIME - *MAX_LUX_END_TIME) / 4;
+        assert_eq!(
+            time_based_brightness_for_time(&quarter_dark_to_bright).unwrap(),
+            0.25,
+        );
 
-        // assert_eq!(
-        //     time_based_brightness_for_time(&quarter_bright_to_dark).unwrap(),
-        //     three_quarter_brightness,
-        // );
+        let mid_dark_to_bright = *MIN_LUX_END_TIME + (*MAX_LUX_START_TIME - *MIN_LUX_END_TIME) / 2;
 
-        // let mid_bright_to_dark = *MAX_LUX_END_TIME + (*MIN_LUX_START_TIME - *MAX_LUX_END_TIME) / 2;
+        assert_eq!(
+            time_based_brightness_for_time(&mid_dark_to_bright).unwrap(),
+            0.5,
+        );
 
-        // assert_eq!(
-        //     time_based_brightness_for_time(&mid_bright_to_dark).unwrap(),
-        //     mid_brightness,
-        // );
+        let three_quarter_dark_to_bright =
+            *MIN_LUX_END_TIME + ((*MAX_LUX_START_TIME - *MIN_LUX_END_TIME) * 3) / 4;
 
-        // let three_quarter_bright_to_dark =
-        //     *MAX_LUX_END_TIME + ((*MIN_LUX_START_TIME - *MAX_LUX_END_TIME) * 3) / 4;
-        // let quarter_brightness = FULL_BRIGHT_TIME_BRIGHTNESS
-        //     - (FULL_BRIGHT_TIME_BRIGHTNESS - FULL_DARK_TIME_BRIGHTNESS) * 3.0 / 4.0;
+        assert_eq!(
+            time_based_brightness_for_time(&three_quarter_dark_to_bright).unwrap(),
+            0.75,
+        );
 
-        // assert_eq!(
-        //     time_based_brightness_for_time(&three_quarter_bright_to_dark).unwrap(),
-        //     quarter_brightness,
-        // );
-
-        // // A time close enough to the start of full darkness will round to full darkness
-        // assert_eq!(
-        //     time_based_brightness_for_time(&(*MIN_LUX_START_TIME - chrono::Duration::milliseconds(1)))
-        //         .unwrap(),
-        //     FULL_DARK_TIME_BRIGHTNESS,
-        // );
+        // A time close enough to the start of full brightness will round to full darkness
+        assert_eq!(
+            time_based_brightness_for_time(
+                &(*MAX_LUX_START_TIME - chrono::Duration::milliseconds(1))
+            )
+            .unwrap(),
+            1.,
+        );
     }
 }
