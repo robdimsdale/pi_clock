@@ -24,9 +24,7 @@ use std::fmt;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 #[cfg(target_arch = "arm")]
-use linux_embedded_hal::i2cdev::linux::LinuxI2CError;
-#[cfg(target_arch = "arm")]
-use linux_embedded_hal::I2cdev;
+use rppal::i2c::I2c;
 #[cfg(target_arch = "arm")]
 use veml6030::{SlaveAddr, Veml6030};
 
@@ -62,10 +60,10 @@ pub enum ErrorKind {
     LockLightSensor,
 
     #[cfg(target_arch = "arm")]
-    I2CDevice(LinuxI2CError),
+    I2C(rppal::i2c::Error),
 
     #[cfg(target_arch = "arm")]
-    VEML(veml6030::Error<linux_embedded_hal::i2cdev::linux::LinuxI2CError>),
+    VEML(veml6030::Error<rppal::i2c::Error>),
 
     /// Hints that destructuring should not be exhaustive.
     ///
@@ -86,7 +84,7 @@ impl fmt::Display for Error {
             }
 
             #[cfg(target_arch = "arm")]
-            ErrorKind::I2CDevice(ref err) => err.fmt(f),
+            ErrorKind::I2C(ref err) => err.fmt(f),
 
             #[cfg(target_arch = "arm")]
             ErrorKind::VEML(ref err) => write!(f, "{:?}", err),
@@ -105,10 +103,8 @@ impl From<PoisonError<MutexGuard<'_, ThreadRng>>> for Error {
 }
 
 #[cfg(target_arch = "arm")]
-impl From<PoisonError<MutexGuard<'_, veml6030::Veml6030<linux_embedded_hal::I2cdev>>>> for Error {
-    fn from(
-        _: PoisonError<MutexGuard<'_, veml6030::Veml6030<linux_embedded_hal::I2cdev>>>,
-    ) -> Self {
+impl From<PoisonError<MutexGuard<'_, veml6030::Veml6030<I2c>>>> for Error {
+    fn from(_: PoisonError<MutexGuard<'_, veml6030::Veml6030<I2c>>>) -> Self {
         Error {
             kind: ErrorKind::LockLightSensor,
         }
@@ -116,17 +112,17 @@ impl From<PoisonError<MutexGuard<'_, veml6030::Veml6030<linux_embedded_hal::I2cd
 }
 
 #[cfg(target_arch = "arm")]
-impl From<LinuxI2CError> for Error {
-    fn from(e: LinuxI2CError) -> Self {
+impl From<rppal::i2c::Error> for Error {
+    fn from(e: rppal::i2c::Error) -> Self {
         Error {
-            kind: ErrorKind::I2CDevice(e),
+            kind: ErrorKind::I2C(e),
         }
     }
 }
 
 #[cfg(target_arch = "arm")]
-impl From<veml6030::Error<linux_embedded_hal::i2cdev::linux::LinuxI2CError>> for Error {
-    fn from(e: veml6030::Error<linux_embedded_hal::i2cdev::linux::LinuxI2CError>) -> Self {
+impl From<veml6030::Error<rppal::i2c::Error>> for Error {
+    fn from(e: veml6030::Error<rppal::i2c::Error>) -> Self {
         Error {
             kind: ErrorKind::VEML(e),
         }
@@ -223,14 +219,14 @@ fn time_based_brightness_for_time(t: &NaiveTime) -> Result<f32, Error> {
 
 #[cfg(target_arch = "arm")]
 pub struct VEML7700LightSensor {
-    sensor: Mutex<Veml6030<I2cdev>>,
+    sensor: Mutex<Veml6030<I2c>>,
 }
 
 #[cfg(target_arch = "arm")]
 impl VEML7700LightSensor {
     pub fn new() -> Result<Self, Error> {
-        let dev = I2cdev::new("/dev/i2c-1")?; // TODO: use rppal I2C
-        let mut sensor = Veml6030::new(dev, SlaveAddr::default());
+        let i2c = I2c::new()?;
+        let mut sensor = Veml6030::new(i2c, SlaveAddr::default());
         sensor.enable()?;
 
         Ok(VEML7700LightSensor {

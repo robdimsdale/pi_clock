@@ -21,19 +21,16 @@ use ili9341::{Ili9341, Orientation};
 #[cfg(target_arch = "arm")]
 use linux_embedded_hal::sysfs_gpio::Direction;
 #[cfg(target_arch = "arm")]
-use linux_embedded_hal::I2cdev;
-#[cfg(target_arch = "arm")]
 use linux_embedded_hal::{Delay, Pin};
 #[cfg(target_arch = "arm")]
 use log::debug;
+#[cfg(target_arch = "arm")]
+use rppal::i2c::I2c;
 #[cfg(target_arch = "arm")]
 use rppal::pwm::{Channel, Polarity, Pwm};
 #[cfg(target_arch = "arm")]
 use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
 use std::fmt;
-
-#[cfg(target_arch = "arm")]
-use linux_embedded_hal::i2cdev::linux::LinuxI2CError;
 
 #[derive(Debug)]
 pub struct Error {
@@ -55,7 +52,7 @@ pub enum ErrorKind {
     LightSensor(LightError),
 
     #[cfg(target_arch = "arm")]
-    I2CDevice(LinuxI2CError),
+    I2C(rppal::i2c::Error),
 
     #[cfg(target_arch = "arm")]
     PWM(rppal::pwm::Error),
@@ -90,7 +87,7 @@ impl fmt::Display for Error {
             ErrorKind::LightSensor(ref err) => err.fmt(f),
 
             #[cfg(target_arch = "arm")]
-            ErrorKind::I2CDevice(ref err) => err.fmt(f),
+            ErrorKind::I2C(ref err) => err.fmt(f),
 
             #[cfg(target_arch = "arm")]
             ErrorKind::PWM(ref err) => err.fmt(f),
@@ -124,10 +121,10 @@ impl From<LightError> for Error {
 }
 
 #[cfg(target_arch = "arm")]
-impl From<LinuxI2CError> for Error {
-    fn from(e: LinuxI2CError) -> Self {
+impl From<rppal::i2c::Error> for Error {
+    fn from(e: rppal::i2c::Error) -> Self {
         Error {
-            kind: ErrorKind::I2CDevice(e),
+            kind: ErrorKind::I2C(e),
         }
     }
 }
@@ -560,7 +557,7 @@ impl<'a, T: LightSensor> Display for ILI9341Display<'a, T> {
 
 #[cfg(target_arch = "arm")]
 pub struct AlphaNum4Display<'a, T: LightSensor> {
-    ht16k33: HT16K33<I2cdev>,
+    ht16k33: HT16K33<I2c>,
 
     light_sensor: &'a T,
 }
@@ -572,7 +569,7 @@ impl<'a, T: LightSensor> AlphaNum4Display<'a, T> {
         let address = 0x71;
 
         // Create an I2C device.
-        let mut i2c = I2cdev::new("/dev/i2c-1")?; // TODO: use rppal I2C
+        let mut i2c = I2c::new()?;
         i2c.set_slave_address(address as u16)?;
 
         let mut ht16k33 = HT16K33::new(i2c, address);
@@ -642,7 +639,7 @@ impl<'a, T: LightSensor> Display for AlphaNum4Display<'a, T> {
 
 #[cfg(target_arch = "arm")]
 pub struct SevenSegment4Display<'a, T: LightSensor> {
-    ht16k33: HT16K33<I2cdev>,
+    ht16k33: HT16K33<I2c>,
 
     light_sensor: &'a T,
 }
@@ -654,7 +651,7 @@ impl<'a, T: LightSensor> SevenSegment4Display<'a, T> {
         let address = 0x70;
 
         // Create an I2C device.
-        let mut i2c = I2cdev::new("/dev/i2c-1")?; // TODO: use rppal I2C
+        let mut i2c = I2c::new()?;
         i2c.set_slave_address(address as u16)?;
 
         let mut ht16k33 = HT16K33::new(i2c, address);
