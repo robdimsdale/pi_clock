@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         #[cfg(target_arch = "arm")]
         VEML7700_LIGHT_SENSOR_TYPE => {
-            pi_clock::LightSensorType::VEML7700(pi_clock::VEML7700LightSensor::new())
+            pi_clock::LightSensorType::VEML7700(pi_clock::VEML7700LightSensor::new()?)
         }
         _ => {
             panic!("Unrecognized light sensor type: {}", light_sensor_type_str)
@@ -42,35 +42,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut displays = args
         .display_types
         .iter()
-        .map(|d| match d.as_str() {
-            CONSOLE_DISPLAY_TYPE => {
-                pi_clock::DisplayType::Console(pi_clock::ConsoleDisplay::new(&light_sensor))
-            }
+        .map(|d| -> Result<pi_clock::DisplayType<_>, pi_clock::Error> {
+            match d.as_str() {
+                CONSOLE_DISPLAY_TYPE => Ok(pi_clock::DisplayType::Console(
+                    pi_clock::ConsoleDisplay::new(&light_sensor),
+                )),
 
-            #[cfg(target_arch = "arm")]
-            HD44780_DISPLAY_TYPE => {
-                pi_clock::DisplayType::HD44780(pi_clock::HD44780Display::new(&light_sensor))
-            }
+                #[cfg(target_arch = "arm")]
+                HD44780_DISPLAY_TYPE => Ok(pi_clock::DisplayType::HD44780(
+                    pi_clock::HD44780Display::new(&light_sensor)?,
+                )),
 
-            #[cfg(target_arch = "arm")]
-            ILI9341_DISPLAY_TYPE => {
-                pi_clock::DisplayType::ILI9341(pi_clock::ILI9341Display::new(&light_sensor))
-            }
+                #[cfg(target_arch = "arm")]
+                ILI9341_DISPLAY_TYPE => Ok(pi_clock::DisplayType::ILI9341(
+                    pi_clock::ILI9341Display::new(&light_sensor)?,
+                )),
 
-            #[cfg(target_arch = "arm")]
-            ALPHANUM4_DISPLAY_TYPE => {
-                pi_clock::DisplayType::AlphaNum4(pi_clock::AlphaNum4Display::new(&light_sensor))
-            }
+                #[cfg(target_arch = "arm")]
+                ALPHANUM4_DISPLAY_TYPE => Ok(pi_clock::DisplayType::AlphaNum4(
+                    pi_clock::AlphaNum4Display::new(&light_sensor)?,
+                )),
 
-            #[cfg(target_arch = "arm")]
-            SEVEN_SEGMENT_4_DISPLAY_TYPE => pi_clock::DisplayType::SevenSegment4(
-                pi_clock::SevenSegment4Display::new(&light_sensor),
-            ),
-            _ => {
-                panic!("Unrecognized display type: {}", d)
+                #[cfg(target_arch = "arm")]
+                SEVEN_SEGMENT_4_DISPLAY_TYPE => Ok(pi_clock::DisplayType::SevenSegment4(
+                    pi_clock::SevenSegment4Display::new(&light_sensor)?,
+                )),
+                _ => {
+                    panic!("Unrecognized display type: {}", d)
+                }
             }
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, _>>()?;
 
     let mut display = pi_clock::DisplayType::Composite(displays.as_mut_slice());
 
@@ -82,7 +84,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &args.lon,
         &args.units,
         &mut display,
-    );
+    )?;
 
     Ok(())
 }

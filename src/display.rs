@@ -1,3 +1,4 @@
+use crate::light::Error as LightError;
 use crate::light::LightSensor;
 use crate::weather::{OpenWeather, TemperatureUnits};
 
@@ -24,11 +25,168 @@ use linux_embedded_hal::I2cdev;
 #[cfg(target_arch = "arm")]
 use linux_embedded_hal::{Delay, Pin};
 #[cfg(target_arch = "arm")]
+use log::debug;
+#[cfg(target_arch = "arm")]
 use rppal::pwm::{Channel, Polarity, Pwm};
 #[cfg(target_arch = "arm")]
 use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
+use std::fmt;
 
-// To enable heterogenous abstractions
+#[cfg(target_arch = "arm")]
+use linux_embedded_hal::i2cdev::linux::LinuxI2CError;
+
+#[derive(Debug)]
+pub struct Error {
+    kind: ErrorKind,
+}
+
+impl std::error::Error for Error {}
+
+impl Error {
+    /// Return the kind of this error.
+    pub fn kind(&self) -> &ErrorKind {
+        &self.kind
+    }
+}
+
+/// The kind of an error that can occur.
+#[derive(Debug)]
+pub enum ErrorKind {
+    LightSensor(LightError),
+
+    #[cfg(target_arch = "arm")]
+    I2CDevice(LinuxI2CError),
+
+    #[cfg(target_arch = "arm")]
+    PWM(rppal::pwm::Error),
+
+    #[cfg(target_arch = "arm")]
+    SPI(rppal::spi::Error),
+
+    #[cfg(target_arch = "arm")]
+    GPIO(linux_embedded_hal::sysfs_gpio::Error),
+
+    #[cfg(target_arch = "arm")]
+    HT16K33(ht16k33::ValidationError),
+
+    #[cfg(target_arch = "arm")]
+    ILI9341(ili9341::Error<linux_embedded_hal::sysfs_gpio::Error>),
+
+    #[cfg(target_arch = "arm")]
+    HD44780(hd44780_driver::error::Error),
+
+    /// Hints that destructuring should not be exhaustive.
+    ///
+    /// This enum may grow additional variants, so this makes sure clients
+    /// don't count on exhaustive matching. (Otherwise, adding a new variant
+    /// could break existing code.)
+    #[doc(hidden)]
+    __Nonexhaustive,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.kind {
+            ErrorKind::LightSensor(ref err) => err.fmt(f),
+
+            #[cfg(target_arch = "arm")]
+            ErrorKind::I2CDevice(ref err) => err.fmt(f),
+
+            #[cfg(target_arch = "arm")]
+            ErrorKind::PWM(ref err) => err.fmt(f),
+
+            #[cfg(target_arch = "arm")]
+            ErrorKind::SPI(ref err) => err.fmt(f),
+
+            #[cfg(target_arch = "arm")]
+            ErrorKind::GPIO(ref err) => err.fmt(f),
+
+            #[cfg(target_arch = "arm")]
+            ErrorKind::HT16K33(ref err) => err.fmt(f),
+
+            #[cfg(target_arch = "arm")]
+            ErrorKind::ILI9341(ref err) => write!(f, "{:?}", err),
+
+            #[cfg(target_arch = "arm")]
+            ErrorKind::HD44780(ref err) => write!(f, "{:?}", err),
+
+            ErrorKind::__Nonexhaustive => unreachable!(),
+        }
+    }
+}
+
+impl From<LightError> for Error {
+    fn from(e: LightError) -> Self {
+        Error {
+            kind: ErrorKind::LightSensor(e),
+        }
+    }
+}
+
+#[cfg(target_arch = "arm")]
+impl From<LinuxI2CError> for Error {
+    fn from(e: LinuxI2CError) -> Self {
+        Error {
+            kind: ErrorKind::I2CDevice(e),
+        }
+    }
+}
+
+#[cfg(target_arch = "arm")]
+impl From<linux_embedded_hal::sysfs_gpio::Error> for Error {
+    fn from(e: linux_embedded_hal::sysfs_gpio::Error) -> Self {
+        Error {
+            kind: ErrorKind::GPIO(e),
+        }
+    }
+}
+
+#[cfg(target_arch = "arm")]
+impl From<rppal::pwm::Error> for Error {
+    fn from(e: rppal::pwm::Error) -> Self {
+        Error {
+            kind: ErrorKind::PWM(e),
+        }
+    }
+}
+
+#[cfg(target_arch = "arm")]
+impl From<rppal::spi::Error> for Error {
+    fn from(e: rppal::spi::Error) -> Self {
+        Error {
+            kind: ErrorKind::SPI(e),
+        }
+    }
+}
+
+#[cfg(target_arch = "arm")]
+impl From<ht16k33::ValidationError> for Error {
+    fn from(e: ht16k33::ValidationError) -> Self {
+        Error {
+            kind: ErrorKind::HT16K33(e),
+        }
+    }
+}
+
+#[cfg(target_arch = "arm")]
+impl From<ili9341::Error<linux_embedded_hal::sysfs_gpio::Error>> for Error {
+    fn from(e: ili9341::Error<linux_embedded_hal::sysfs_gpio::Error>) -> Self {
+        Error {
+            kind: ErrorKind::ILI9341(e),
+        }
+    }
+}
+
+#[cfg(target_arch = "arm")]
+impl From<hd44780_driver::error::Error> for Error {
+    fn from(e: hd44780_driver::error::Error) -> Self {
+        Error {
+            kind: ErrorKind::HD44780(e),
+        }
+    }
+}
+
+// To enable heterogenous abstractions over multiple display types
 pub enum DisplayType<'a, T: LightSensor> {
     Console(ConsoleDisplay<'a, T>),
     #[cfg(target_arch = "arm")]
@@ -48,7 +206,7 @@ impl<'a, T: LightSensor> DisplayType<'a, T> {
         time: &DateTime<Local>,
         weather: &OpenWeather,
         units: &TemperatureUnits,
-    ) {
+    ) -> Result<(), Error> {
         match &mut *self {
             Self::Console(display) => display.print(time, weather, units),
             #[cfg(target_arch = "arm")]
@@ -61,15 +219,21 @@ impl<'a, T: LightSensor> DisplayType<'a, T> {
             Self::SevenSegment4(display) => display.print(time, weather, units),
             Self::Composite(displays) => {
                 for d in displays.iter_mut() {
-                    d.print(time, weather, units);
+                    d.print(time, weather, units)?;
                 }
+                Ok(())
             }
         }
     }
 }
 
 pub trait Display {
-    fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits);
+    fn print(
+        &mut self,
+        time: &DateTime<Local>,
+        weather: &OpenWeather,
+        units: &TemperatureUnits,
+    ) -> Result<(), Error>;
 }
 
 pub struct ConsoleDisplay<'a, T: LightSensor> {
@@ -85,7 +249,12 @@ impl<'a, T: LightSensor> ConsoleDisplay<'a, T> {
 }
 
 impl<'a, T: LightSensor> Display for ConsoleDisplay<'a, T> {
-    fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits) {
+    fn print(
+        &mut self,
+        time: &DateTime<Local>,
+        weather: &OpenWeather,
+        units: &TemperatureUnits,
+    ) -> Result<(), Error> {
         let first_row = format!(
             "{:02}:{:02} {:>10}",
             time.hour(),
@@ -94,9 +263,7 @@ impl<'a, T: LightSensor> Display for ConsoleDisplay<'a, T> {
         );
 
         let day = &time.weekday().to_string()[0..3];
-        let month = &Month::from_u32(time.month())
-            .expect("failed to parse month")
-            .name()[0..3];
+        let month = &mmm_from_time(time);
 
         // temperature is right-aligned with three characters max (including sign).
         // If the temperature is less than -99° or > 999° we have other problems.
@@ -116,9 +283,18 @@ impl<'a, T: LightSensor> Display for ConsoleDisplay<'a, T> {
 
         println!(
             "Current light: {}",
-            self.light_sensor.read_light_normalized().unwrap()
+            self.light_sensor.read_light_normalized()?
         );
+
+        Ok(())
     }
+}
+
+fn mmm_from_time(time: &DateTime<Local>) -> String {
+    Month::from_u32(time.month())
+        .expect("failed to parse month from datetime provided by operating system")
+        .name()[0..3]
+        .to_owned()
 }
 
 #[cfg(target_arch = "arm")]
@@ -141,7 +317,7 @@ pub struct HD44780Display<'a, T: LightSensor> {
 
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> HD44780Display<'a, T> {
-    pub fn new(light_sensor: &'a T) -> HD44780Display<'a, T> {
+    pub fn new(light_sensor: &'a T) -> Result<Self, Error> {
         // Using BCM numbers
         // i.e. pin 0 corresponds to wiringpi 30 and physical 27
 
@@ -163,36 +339,34 @@ impl<'a, T: LightSensor> HD44780Display<'a, T> {
             default_brightness,
             Polarity::Normal,
             false,
-        )
-        .expect("failed to initialize PWM 0 (brightness)");
+        )?;
 
-        pwm0.enable().expect("failed to enable PWM 0 (brightness)");
+        pwm0.enable()?;
 
-        rs.export().unwrap();
-        en.export().unwrap();
-        db4.export().unwrap();
-        db5.export().unwrap();
-        db6.export().unwrap();
-        db7.export().unwrap();
-        r.export().unwrap();
-        g.export().unwrap();
-        b.export().unwrap();
+        rs.export()?;
+        en.export()?;
+        db4.export()?;
+        db5.export()?;
+        db6.export()?;
+        db7.export()?;
+        r.export()?;
+        g.export()?;
+        b.export()?;
 
-        rs.set_direction(Direction::Low).unwrap();
-        en.set_direction(Direction::Low).unwrap();
-        db4.set_direction(Direction::Low).unwrap();
-        db5.set_direction(Direction::Low).unwrap();
-        db6.set_direction(Direction::Low).unwrap();
-        db7.set_direction(Direction::Low).unwrap();
-        r.set_direction(Direction::Low).unwrap(); // Default to red on; green and blue off
-        g.set_direction(Direction::High).unwrap();
-        b.set_direction(Direction::High).unwrap();
+        rs.set_direction(Direction::Low)?;
+        en.set_direction(Direction::Low)?;
+        db4.set_direction(Direction::Low)?;
+        db5.set_direction(Direction::Low)?;
+        db6.set_direction(Direction::Low)?;
+        db7.set_direction(Direction::Low)?;
+        r.set_direction(Direction::Low)?; // Default to red on; green and blue off
+        g.set_direction(Direction::High)?;
+        b.set_direction(Direction::High)?;
 
-        let mut lcd = HD44780::new_4bit(rs, en, db4, db5, db6, db7, &mut Delay)
-            .expect("failed to create new HD44780");
+        let mut lcd = HD44780::new_4bit(rs, en, db4, db5, db6, db7, &mut Delay)?;
 
-        lcd.reset(&mut Delay).expect("failed to reset display");
-        lcd.clear(&mut Delay).expect("failed to clear display");
+        lcd.reset(&mut Delay)?;
+        lcd.clear(&mut Delay)?;
 
         lcd.set_display_mode(
             DisplayMode {
@@ -201,28 +375,32 @@ impl<'a, T: LightSensor> HD44780Display<'a, T> {
                 cursor_blink: CursorBlink::Off,
             },
             &mut Delay,
-        )
-        .expect("failed to set display mode");
+        )?;
 
-        HD44780Display {
+        Ok(HD44780Display {
             lcd: lcd,
             brightness_pwm: pwm0,
             light_sensor: light_sensor,
-        }
+        })
     }
 
-    fn set_brightness(&mut self, brightness: f32) {
+    fn set_brightness(&mut self, brightness: f32) -> Result<(), Error> {
         debug!("Brightness: {}", brightness);
 
-        self.brightness_pwm
-            .set_duty_cycle(brightness as f64)
-            .expect("failed to set brightness");
+        self.brightness_pwm.set_duty_cycle(brightness as f64)?;
+
+        Ok(())
     }
 }
 
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> Display for HD44780Display<'a, T> {
-    fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits) {
+    fn print(
+        &mut self,
+        time: &DateTime<Local>,
+        weather: &OpenWeather,
+        units: &TemperatureUnits,
+    ) -> Result<(), Error> {
         let first_row = format!(
             "{:02}:{:02} {:>10}",
             time.hour(),
@@ -231,21 +409,15 @@ impl<'a, T: LightSensor> Display for HD44780Display<'a, T> {
         );
 
         // Move to beginning of first row.
-        self.lcd.reset(&mut Delay).expect("failed to reset display");
+        self.lcd.reset(&mut Delay)?;
 
-        self.lcd
-            .write_str(&first_row, &mut Delay)
-            .expect("failed to write to display");
+        self.lcd.write_str(&first_row, &mut Delay)?;
 
         // Move to line 2
-        self.lcd
-            .set_cursor_pos(40, &mut Delay)
-            .expect("failed to move to second row");
+        self.lcd.set_cursor_pos(40, &mut Delay)?;
 
         let day = &time.weekday().to_string()[0..3];
-        let month = &Month::from_u32(time.month())
-            .expect("failed to parse month")
-            .name()[0..3];
+        let month = &mmm_from_time(time);
 
         // temperature is right-aligned with three characters max (including sign).
         // If the temperature is less than -99° or > 999° we have other problems.
@@ -262,15 +434,15 @@ impl<'a, T: LightSensor> Display for HD44780Display<'a, T> {
         let mut second_row_as_bytes = second_row.as_bytes().to_vec();
         second_row_as_bytes[14] = 0xDF;
 
-        self.lcd
-            .write_bytes(&second_row_as_bytes, &mut Delay)
-            .expect("failed to write to display");
+        self.lcd.write_bytes(&second_row_as_bytes, &mut Delay)?;
 
-        let brightness = self.light_sensor.read_light_normalized().unwrap();
+        let brightness = self.light_sensor.read_light_normalized()?;
         let min_brightness = 0.01;
         let brightness = brightness.max(min_brightness);
 
-        self.set_brightness(brightness);
+        self.set_brightness(brightness)?;
+
+        Ok(())
     }
 }
 
@@ -286,7 +458,7 @@ pub struct ILI9341Display<'a, T: LightSensor> {
 
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> ILI9341Display<'a, T> {
-    pub fn new(light_sensor: &'a T) -> Self {
+    pub fn new(light_sensor: &'a T) -> Result<Self, Error> {
         let default_brightness = 1.0;
         // pwm0 is pin 18
         let pwm0 = Pwm::with_frequency(
@@ -295,55 +467,56 @@ impl<'a, T: LightSensor> ILI9341Display<'a, T> {
             default_brightness,
             Polarity::Normal,
             false,
-        )
-        .expect("failed to initialize PWM 0 (brightness)");
-        pwm0.enable().expect("failed to enable PWM 0 (brightness)");
+        )?;
+
+        pwm0.enable()?;
 
         let rs = Pin::new(24);
-        rs.export().unwrap();
-        rs.set_direction(Direction::Low).unwrap();
+        rs.export()?;
+        rs.set_direction(Direction::Low)?;
 
         let cs = Pin::new(21); // TODO: can't use the CE0 pin in the display as it is already used by the SPI variable.
-        cs.export().unwrap();
-        cs.set_direction(Direction::Low).unwrap();
+        cs.export()?;
+        cs.set_direction(Direction::Low)?;
 
         let dc = Pin::new(25);
-        dc.export().unwrap();
-        dc.set_direction(Direction::Low).unwrap();
+        dc.export()?;
+        dc.set_direction(Direction::Low)?;
 
-        let spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, 16_000_000, Mode::Mode0).unwrap();
+        let spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, 16_000_000, Mode::Mode0)?;
 
         let spi_di = display_interface_spi::SPIInterface::new(spi, dc, cs);
 
-        let mut display = Ili9341::new(spi_di, rs, &mut Delay).unwrap();
+        let mut display = Ili9341::new(spi_di, rs, &mut Delay)?;
 
-        display
-            .set_orientation(Orientation::LandscapeFlipped)
-            .unwrap();
+        display.set_orientation(Orientation::LandscapeFlipped)?;
 
-        ILI9341Display {
+        Ok(ILI9341Display {
             display: display,
             brightness_pwm: pwm0,
             light_sensor: light_sensor,
-        }
+        })
     }
 
-    fn set_brightness(&mut self, brightness: f32) {
+    fn set_brightness(&mut self, brightness: f32) -> Result<(), Error> {
         debug!("LED brightness: {}", brightness);
 
-        self.brightness_pwm
-            .set_duty_cycle(brightness as f64)
-            .expect("failed to set brightness");
+        self.brightness_pwm.set_duty_cycle(brightness as f64)?;
+
+        Ok(())
     }
 }
 
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> Display for ILI9341Display<'a, T> {
-    fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits) {
+    fn print(
+        &mut self,
+        time: &DateTime<Local>,
+        weather: &OpenWeather,
+        units: &TemperatureUnits,
+    ) -> Result<(), Error> {
         let day = &time.weekday().to_string()[0..3];
-        let month = &Month::from_u32(time.month())
-            .expect("failed to parse month")
-            .name()[0..3];
+        let month = &mmm_from_time(time);
 
         let first_row = format!("{:02}:{:02}", time.hour(), time.minute());
 
@@ -371,15 +544,17 @@ impl<'a, T: LightSensor> Display for ILI9341Display<'a, T> {
             style = text_style!(font = Font12x16, text_color = Rgb565::RED),
         );
 
-        background.draw(&mut self.display).unwrap();
-        time_text.draw(&mut self.display).unwrap();
-        other_text.draw(&mut self.display).unwrap();
+        background.draw(&mut self.display)?;
+        time_text.draw(&mut self.display)?;
+        other_text.draw(&mut self.display)?;
 
-        let brightness = self.light_sensor.read_light_normalized().unwrap();
+        let brightness = self.light_sensor.read_light_normalized()?;
         let min_brightness = 0.01;
         let brightness = brightness.max(min_brightness);
 
-        self.set_brightness(brightness);
+        self.set_brightness(brightness)?;
+
+        Ok(())
     }
 }
 
@@ -392,42 +567,49 @@ pub struct AlphaNum4Display<'a, T: LightSensor> {
 
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> AlphaNum4Display<'a, T> {
-    pub fn new(light_sensor: &'a T) -> AlphaNum4Display<'a, T> {
+    pub fn new(light_sensor: &'a T) -> Result<Self, Error> {
         // The I2C device address.
         let address = 0x71;
 
         // Create an I2C device.
-        let mut i2c = I2cdev::new("/dev/i2c-1").unwrap();
-        i2c.set_slave_address(address as u16).unwrap();
+        let mut i2c = I2cdev::new("/dev/i2c-1")?; // TODO: use rppal I2C
+        i2c.set_slave_address(address as u16)?;
 
         let mut ht16k33 = HT16K33::new(i2c, address);
-        ht16k33.initialize().unwrap();
+        ht16k33.initialize()?;
 
-        ht16k33.set_display(ht16k33::Display::ON).unwrap();
+        ht16k33.set_display(ht16k33::Display::ON)?;
 
-        AlphaNum4Display {
+        Ok(AlphaNum4Display {
             ht16k33: ht16k33,
             light_sensor: light_sensor,
-        }
+        })
     }
 
-    fn set_brightness(&mut self, brightness: f32) {
+    fn set_brightness(&mut self, brightness: f32) -> Result<(), Error> {
         let level = (brightness * 15.0).round() as u8;
-        let dimming = ht16k33::Dimming::from_u8(level).unwrap();
+        let dimming = ht16k33::Dimming::from_u8(level)?;
 
         debug!(
             "Current light level: {}, dimming level: {}/16",
             brightness, level
         );
 
-        self.ht16k33.set_dimming(dimming).unwrap();
+        self.ht16k33.set_dimming(dimming)?;
+
+        Ok(())
     }
 }
 
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> Display for AlphaNum4Display<'a, T> {
-    fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits) {
-        let [d1, d2, d3] = split_temperature(weather.main.temp);
+    fn print(
+        &mut self,
+        _: &DateTime<Local>,
+        weather: &OpenWeather,
+        units: &TemperatureUnits,
+    ) -> Result<(), Error> {
+        let [d1, d2, d3] = split_temperature(weather.main.temp)?;
         adafruit_alphanum4::AlphaNum4::update_buffer_with_char(
             &mut self.ht16k33,
             adafruit_alphanum4::Index::One,
@@ -449,10 +631,12 @@ impl<'a, T: LightSensor> Display for AlphaNum4Display<'a, T> {
             adafruit_alphanum4::AsciiChar::new(units.as_char()),
         );
 
-        self.ht16k33.write_display_buffer().unwrap();
+        self.ht16k33.write_display_buffer()?;
 
-        let brightness = self.light_sensor.read_light_normalized().unwrap();
-        self.set_brightness(brightness);
+        let brightness = self.light_sensor.read_light_normalized()?;
+        self.set_brightness(brightness)?;
+
+        Ok(())
     }
 }
 
@@ -465,39 +649,46 @@ pub struct SevenSegment4Display<'a, T: LightSensor> {
 
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> SevenSegment4Display<'a, T> {
-    pub fn new(light_sensor: &'a T) -> SevenSegment4Display<'a, T> {
+    pub fn new(light_sensor: &'a T) -> Result<Self, Error> {
         // The I2C device address.
         let address = 0x70;
 
         // Create an I2C device.
-        let mut i2c = I2cdev::new("/dev/i2c-1").unwrap();
-        i2c.set_slave_address(address as u16).unwrap();
+        let mut i2c = I2cdev::new("/dev/i2c-1")?; // TODO: use rppal I2C
+        i2c.set_slave_address(address as u16)?;
 
         let mut ht16k33 = HT16K33::new(i2c, address);
-        ht16k33.initialize().unwrap();
+        ht16k33.initialize()?;
 
-        ht16k33.set_display(ht16k33::Display::ON).unwrap();
+        ht16k33.set_display(ht16k33::Display::ON)?;
 
-        SevenSegment4Display {
+        Ok(SevenSegment4Display {
             ht16k33: ht16k33,
             light_sensor: light_sensor,
-        }
+        })
     }
 
-    fn set_brightness(&mut self, brightness: f32) {
+    fn set_brightness(&mut self, brightness: f32) -> Result<(), Error> {
         let level = (brightness * 15.0).round() as u8;
-        let dimming = ht16k33::Dimming::from_u8(level).unwrap();
+        let dimming = ht16k33::Dimming::from_u8(level)?;
 
         debug!("Brightness: {}, dimming level: {}/16", brightness, level);
 
-        self.ht16k33.set_dimming(dimming).unwrap();
+        self.ht16k33.set_dimming(dimming)?;
+
+        Ok(())
     }
 }
 
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> Display for SevenSegment4Display<'a, T> {
-    fn print(&mut self, time: &DateTime<Local>, weather: &OpenWeather, units: &TemperatureUnits) {
-        let [d1, d2, d3, d4] = split_time(time);
+    fn print(
+        &mut self,
+        time: &DateTime<Local>,
+        _: &OpenWeather,
+        _: &TemperatureUnits,
+    ) -> Result<(), Error> {
+        let [d1, d2, d3, d4] = split_time(time)?;
         adafruit_7segment::SevenSegment::update_buffer_with_digit(
             &mut self.ht16k33,
             adafruit_7segment::Index::One,
@@ -519,14 +710,16 @@ impl<'a, T: LightSensor> Display for SevenSegment4Display<'a, T> {
             d4,
         );
         adafruit_7segment::SevenSegment::update_buffer_with_colon(&mut self.ht16k33, true);
-        self.ht16k33.write_display_buffer().unwrap();
+        self.ht16k33.write_display_buffer()?;
 
-        let brightness = self.light_sensor.read_light_normalized().unwrap();
-        self.set_brightness(brightness);
+        let brightness = self.light_sensor.read_light_normalized()?;
+        self.set_brightness(brightness)?;
+
+        Ok(())
     }
 }
 
-fn split_time(t: &DateTime<Local>) -> [u8; 4] {
+fn split_time(t: &DateTime<Local>) -> Result<[u8; 4], Error> {
     let hour = t.hour();
     let minute = t.minute();
 
@@ -536,7 +729,7 @@ fn split_time(t: &DateTime<Local>) -> [u8; 4] {
     let d2 = (hour % 10) as u8;
     let d1 = (hour / 10) as u8 % 10;
 
-    [d1, d2, d3, d4]
+    Ok([d1, d2, d3, d4])
 }
 
 // If the temperature can be represented with two digits (i.e. 0<=t<=99)
@@ -544,7 +737,7 @@ fn split_time(t: &DateTime<Local>) -> [u8; 4] {
 // If the temperature needs three digits (or the negative sign) then skip the gap
 // If the temperature is 1 digit then leave a gap either side
 // If the temperature is negative 1 digit then add a negative sign before and a gap after
-fn split_temperature(temp: f32) -> [char; 3] {
+fn split_temperature(temp: f32) -> Result<[char; 3], Error> {
     let is_negative = temp < 0.;
     let zero_char_as_u8 = 48;
 
@@ -568,7 +761,7 @@ fn split_temperature(temp: f32) -> [char; 3] {
     // 0b XNMLKJIHGGFEDCBA>
     // 0b X000000011100011
 
-    [d1, d2, d3]
+    Ok([d1, d2, d3])
 }
 
 fn truncate_to_characters(s: &str, length: usize) -> String {
@@ -596,34 +789,37 @@ mod tests {
     }
 
     #[test]
-    fn test_split_temperature() {
-        assert_eq!(split_temperature(46.0), ['4', '6', ' ']);
-        assert_eq!(split_temperature(123.0), ['1', '2', '3']);
-        assert_eq!(split_temperature(123.4), ['1', '2', '3']);
-        assert_eq!(split_temperature(275.4), ['2', '7', '5']);
-        assert_eq!(split_temperature(1.4), [' ', '1', ' ']);
-        assert_eq!(split_temperature(-1.4), ['-', '1', ' ']);
-        assert_eq!(split_temperature(-12.4), ['-', '1', '2']);
+    fn test_split_temperature() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(split_temperature(46.0)?, ['4', '6', ' ']);
+        assert_eq!(split_temperature(123.0)?, ['1', '2', '3']);
+        assert_eq!(split_temperature(123.4)?, ['1', '2', '3']);
+        assert_eq!(split_temperature(275.4)?, ['2', '7', '5']);
+        assert_eq!(split_temperature(1.4)?, [' ', '1', ' ']);
+        assert_eq!(split_temperature(-1.4)?, ['-', '1', ' ']);
+        assert_eq!(split_temperature(-12.4)?, ['-', '1', '2']);
         // assert_eq!(split_temperature(-123.4), ['-', '1', '2']); // TODO: should panic
+        Ok(())
     }
 
     #[test]
-    fn test_split_time() {
+    fn test_split_time() -> Result<(), Box<dyn std::error::Error>> {
         assert_eq!(
-            split_time(&Local::now().with_hour(1).unwrap().with_minute(3).unwrap()),
+            split_time(&Local::now().with_hour(1).unwrap().with_minute(3).unwrap())?,
             [0, 1, 0, 3]
         );
         assert_eq!(
-            split_time(&Local::now().with_hour(0).unwrap().with_minute(0).unwrap()),
+            split_time(&Local::now().with_hour(0).unwrap().with_minute(0).unwrap())?,
             [0, 0, 0, 0]
         );
         assert_eq!(
-            split_time(&Local::now().with_hour(12).unwrap().with_minute(34).unwrap()),
+            split_time(&Local::now().with_hour(12).unwrap().with_minute(34).unwrap())?,
             [1, 2, 3, 4]
         );
         assert_eq!(
-            split_time(&Local::now().with_hour(23).unwrap().with_minute(59).unwrap()),
+            split_time(&Local::now().with_hour(23).unwrap().with_minute(59).unwrap())?,
             [2, 3, 5, 9]
         );
+
+        Ok(())
     }
 }

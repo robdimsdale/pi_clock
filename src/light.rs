@@ -20,9 +20,11 @@
 use chrono::{Local, NaiveTime};
 use lazy_static::*;
 use rand::prelude::*;
-use std::error::Error;
-use std::sync::Mutex;
+use std::fmt;
+use std::sync::{Mutex, MutexGuard, PoisonError};
 
+#[cfg(target_arch = "arm")]
+use linux_embedded_hal::i2cdev::linux::LinuxI2CError;
 #[cfg(target_arch = "arm")]
 use linux_embedded_hal::I2cdev;
 #[cfg(target_arch = "arm")]
@@ -38,16 +40,109 @@ lazy_static! {
     static ref MIN_LUX_END_TIME: NaiveTime = NaiveTime::from_hms(7, 0, 0); // Must be after midnight
 }
 
+#[derive(Debug)]
+pub struct Error {
+    kind: ErrorKind,
+}
+
+impl std::error::Error for Error {}
+
+impl Error {
+    /// Return the kind of this error.
+    pub fn kind(&self) -> &ErrorKind {
+        &self.kind
+    }
+}
+
+/// The kind of an error that can occur.
+#[derive(Debug)]
+pub enum ErrorKind {
+    LockRng,
+
+    LockLightSensor,
+
+    #[cfg(target_arch = "arm")]
+    I2CDevice(LinuxI2CError),
+
+    #[cfg(target_arch = "arm")]
+    VEML(veml6030::Error<linux_embedded_hal::i2cdev::linux::LinuxI2CError>),
+
+    /// Hints that destructuring should not be exhaustive.
+    ///
+    /// This enum may grow additional variants, so this makes sure clients
+    /// don't count on exhaustive matching. (Otherwise, adding a new variant
+    /// could break existing code.)
+    #[doc(hidden)]
+    __Nonexhaustive,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.kind {
+            ErrorKind::LockRng => write!(f, "a task failed while holding RNG lock"),
+
+            ErrorKind::LockLightSensor => {
+                write!(f, "a task failed while holding Light Sensor lock")
+            }
+
+            #[cfg(target_arch = "arm")]
+            ErrorKind::I2CDevice(ref err) => err.fmt(f),
+
+            #[cfg(target_arch = "arm")]
+            ErrorKind::VEML(ref err) => write!(f, "{:?}", err),
+
+            ErrorKind::__Nonexhaustive => unreachable!(),
+        }
+    }
+}
+
+impl From<PoisonError<MutexGuard<'_, ThreadRng>>> for Error {
+    fn from(_: PoisonError<MutexGuard<'_, ThreadRng>>) -> Self {
+        Error {
+            kind: ErrorKind::LockRng,
+        }
+    }
+}
+
+#[cfg(target_arch = "arm")]
+impl From<PoisonError<MutexGuard<'_, veml6030::Veml6030<linux_embedded_hal::I2cdev>>>> for Error {
+    fn from(
+        _: PoisonError<MutexGuard<'_, veml6030::Veml6030<linux_embedded_hal::I2cdev>>>,
+    ) -> Self {
+        Error {
+            kind: ErrorKind::LockLightSensor,
+        }
+    }
+}
+
+#[cfg(target_arch = "arm")]
+impl From<LinuxI2CError> for Error {
+    fn from(e: LinuxI2CError) -> Self {
+        Error {
+            kind: ErrorKind::I2CDevice(e),
+        }
+    }
+}
+
+#[cfg(target_arch = "arm")]
+impl From<veml6030::Error<linux_embedded_hal::i2cdev::linux::LinuxI2CError>> for Error {
+    fn from(e: veml6030::Error<linux_embedded_hal::i2cdev::linux::LinuxI2CError>) -> Self {
+        Error {
+            kind: ErrorKind::VEML(e),
+        }
+    }
+}
+
 // To enable heterogenous abstractions
 pub enum LightSensorType {
     Random(RandomLightSensor),
     Time(TimeLightSensor),
     #[cfg(target_arch = "arm")]
-    VEML7700(VEML7700LightSensor),
+    VEML7700(VEML7700LightSensor), // TODO: consider add caching here to avoid lots of mutexes
 }
 
 impl LightSensor for LightSensorType {
-    fn read_light_normalized(&self) -> Result<f32, Box<dyn Error>> {
+    fn read_light_normalized(&self) -> Result<f32, Error> {
         match &self {
             Self::Random(sensor) => sensor.read_light_normalized(),
             Self::Time(sensor) => sensor.read_light_normalized(),
@@ -59,7 +154,7 @@ impl LightSensor for LightSensorType {
 
 // Returns a value between 0 and 1
 pub trait LightSensor {
-    fn read_light_normalized(&self) -> Result<f32, Box<dyn Error>>;
+    fn read_light_normalized(&self) -> Result<f32, Error>;
 }
 
 pub struct TimeLightSensor {}
@@ -71,12 +166,12 @@ impl TimeLightSensor {
 }
 
 impl LightSensor for TimeLightSensor {
-    fn read_light_normalized(&self) -> Result<f32, Box<dyn Error>> {
+    fn read_light_normalized(&self) -> Result<f32, Error> {
         time_based_brightness_for_time(&Local::now().time())
     }
 }
 
-fn time_based_brightness_for_time(t: &NaiveTime) -> Result<f32, Box<dyn Error>> {
+fn time_based_brightness_for_time(t: &NaiveTime) -> Result<f32, Error> {
     let midnight = NaiveTime::from_num_seconds_from_midnight(0, 0);
 
     let full_bright_range = *MAX_LUX_START_TIME..*MAX_LUX_END_TIME;
@@ -133,23 +228,21 @@ pub struct VEML7700LightSensor {
 
 #[cfg(target_arch = "arm")]
 impl VEML7700LightSensor {
-    pub fn new() -> VEML7700LightSensor {
-        let dev = I2cdev::new("/dev/i2c-1").unwrap();
+    pub fn new() -> Result<Self, Error> {
+        let dev = I2cdev::new("/dev/i2c-1")?; // TODO: use rppal I2C
         let mut sensor = Veml6030::new(dev, SlaveAddr::default());
-        sensor.enable().unwrap();
+        sensor.enable()?;
 
-        VEML7700LightSensor {
+        Ok(VEML7700LightSensor {
             sensor: Mutex::new(sensor),
-        }
+        })
     }
 }
 
 #[cfg(target_arch = "arm")]
 impl LightSensor for VEML7700LightSensor {
-    fn read_light_normalized(&self) -> Result<f32, Box<dyn Error>> {
-        Ok(normalize_lux(
-            self.sensor.lock().unwrap().read_lux().unwrap(),
-        ))
+    fn read_light_normalized(&self) -> Result<f32, Error> {
+        Ok(normalize_lux(self.sensor.lock()?.read_lux()?))
     }
 }
 
@@ -166,8 +259,8 @@ impl RandomLightSensor {
 }
 
 impl LightSensor for RandomLightSensor {
-    fn read_light_normalized(&self) -> Result<f32, Box<dyn Error>> {
-        let val = self.rng.lock().unwrap().gen_range(MIN_LUX..MAX_LUX);
+    fn read_light_normalized(&self) -> Result<f32, Error> {
+        let val = self.rng.lock()?.gen_range(MIN_LUX..MAX_LUX);
         Ok(normalize_lux(val))
     }
 }

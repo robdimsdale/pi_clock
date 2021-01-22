@@ -10,11 +10,66 @@ pub use display::{ConsoleDisplay, Display, DisplayType};
 pub use light::VEML7700LightSensor;
 pub use light::{LightSensor, LightSensorType, RandomLightSensor, TimeLightSensor};
 use log::{info, warn};
+use std::fmt;
 use std::{thread, time};
 pub use weather::{OpenWeather, TemperatureUnits};
 
 const SLEEP_DURATION_MILLIS: u64 = 100;
 const WEATHER_DURATION_SECONDS: u64 = 600;
+
+#[derive(Debug)]
+pub struct Error {
+    kind: ErrorKind,
+}
+
+impl std::error::Error for Error {}
+
+impl Error {
+    /// Return the kind of this error.
+    pub fn kind(&self) -> &ErrorKind {
+        &self.kind
+    }
+}
+
+/// The kind of an error that can occur.
+#[derive(Debug)]
+pub enum ErrorKind {
+    Weather(weather::Error),
+    Display(display::Error),
+    /// Hints that destructuring should not be exhaustive.
+    ///
+    /// This enum may grow additional variants, so this makes sure clients
+    /// don't count on exhaustive matching. (Otherwise, adding a new variant
+    /// could break existing code.)
+    #[doc(hidden)]
+    __Nonexhaustive,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.kind {
+            ErrorKind::Weather(ref err) => err.fmt(f),
+            ErrorKind::Display(ref err) => err.fmt(f),
+            ErrorKind::__Nonexhaustive => unreachable!(),
+        }
+    }
+}
+
+impl From<weather::Error> for Error {
+    fn from(e: weather::Error) -> Self {
+        Error {
+            kind: ErrorKind::Weather(e),
+        }
+    }
+}
+
+impl From<display::Error> for Error {
+    fn from(e: display::Error) -> Self {
+        Error {
+            kind: ErrorKind::Display(e),
+        }
+    }
+}
 
 pub fn run<T: LightSensor>(
     open_weather_api_key: &str,
@@ -22,12 +77,11 @@ pub fn run<T: LightSensor>(
     lon: &str,
     units: &TemperatureUnits,
     display: &mut display::DisplayType<T>,
-) {
+) -> Result<(), Error> {
     let mut last_weather_attempt = time::Instant::now();
     let mut last_weather_success = time::Instant::now();
 
-    let mut weather = weather::get_weather(&open_weather_api_key, &lat, &lon, &units)
-        .expect("failed to get initial weather");
+    let mut weather = weather::get_weather(&open_weather_api_key, &lat, &lon, &units)?;
 
     loop {
         let now = time::Instant::now();
@@ -56,7 +110,7 @@ pub fn run<T: LightSensor>(
             }
         }
 
-        display.print(&Local::now(), &weather, &units);
+        display.print(&Local::now(), &weather, &units)?;
 
         thread::sleep(time::Duration::from_millis(SLEEP_DURATION_MILLIS));
     }
