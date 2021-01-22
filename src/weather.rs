@@ -3,6 +3,7 @@ mod units;
 
 pub use open_weather_types::OpenWeather;
 use std::fmt;
+use std::time::Duration;
 pub use units::TemperatureUnits;
 
 #[derive(Debug)]
@@ -90,9 +91,9 @@ pub fn get_weather(
         units.to_string()
     );
 
-    let mut req = ureq::get(&uri); // TODO: add timeout.
+    let agent = ureq::builder().timeout(Duration::from_millis(500)).build();
 
-    let response = req.call()?;
+    let response = agent.get(&uri).call()?.into_string()?;
 
-    Ok(serde_json::from_str(&response.into_string()?)?)
+    Ok(serde_json::from_str(&response)?)
 }
