@@ -56,7 +56,7 @@ impl<'a, T: LightSensor> DisplayType<'a, T> {
     pub fn print(
         &mut self,
         time: &DateTime<Local>,
-        weather: &OpenWeather,
+        weather: &Option<OpenWeather>,
         units: &TemperatureUnits,
     ) -> Result<(), Error> {
         match &mut *self {
@@ -88,7 +88,7 @@ pub trait Display {
     fn print(
         &mut self,
         time: &DateTime<Local>,
-        weather: &OpenWeather,
+        weather: &Option<OpenWeather>,
         units: &TemperatureUnits,
     ) -> Result<(), Error>;
 }
@@ -109,29 +109,43 @@ impl<'a, T: LightSensor> Display for ConsoleDisplay<'a, T> {
     fn print(
         &mut self,
         time: &DateTime<Local>,
-        weather: &OpenWeather,
+        weather: &Option<OpenWeather>,
         units: &TemperatureUnits,
     ) -> Result<(), Error> {
-        let first_row = format!(
-            "{:02}:{:02} {:>10}",
-            time.hour(),
-            time.minute(),
-            truncate_to_characters(&weather.weather[0].main, 7)
-        );
+        let first_row = match weather {
+            Some(w) => {
+                format!(
+                    "{:02}:{:02} {:>10}",
+                    time.hour(),
+                    time.minute(),
+                    truncate_to_characters(&w.weather[0].main, 7)
+                )
+            }
+            None => {
+                format!("{:02}:{:02} {:>10}", time.hour(), time.minute(), "WEATHER")
+            }
+        };
 
         let day = &time.weekday().to_string()[0..3];
         let month = &mmm_from_time(time);
 
         // temperature is right-aligned with three characters max (including sign).
         // If the temperature is less than -99° or > 999° we have other problems.
-        let second_row = format!(
-            "{} {} {:<2} {:>3}°{}",
-            day,
-            month,
-            time.day(),
-            &weather.main.temp.round(),
-            units.as_char(),
-        );
+        let second_row = match weather {
+            Some(w) => {
+                format!(
+                    "{} {} {:<2} {:>3}°{}",
+                    day,
+                    month,
+                    time.day(),
+                    &w.main.temp.round(),
+                    units.as_char(),
+                )
+            }
+            None => {
+                format!("{} {} {:<2}   ERR", day, month, time.day())
+            }
+        };
         println!();
         println!("-{}-", std::iter::repeat("-").take(16).collect::<String>());
         println!("|{}|", first_row);
@@ -255,15 +269,22 @@ impl<'a, T: LightSensor> Display for HD44780Display<'a, T> {
     fn print(
         &mut self,
         time: &DateTime<Local>,
-        weather: &OpenWeather,
+        weather: &Option<OpenWeather>,
         units: &TemperatureUnits,
     ) -> Result<(), Error> {
-        let first_row = format!(
-            "{:02}:{:02} {:>10}",
-            time.hour(),
-            time.minute(),
-            truncate_to_characters(&weather.weather[0].main, 7)
-        );
+        let first_row = match weather {
+            Some(w) => {
+                format!(
+                    "{:02}:{:02} {:>10}",
+                    time.hour(),
+                    time.minute(),
+                    truncate_to_characters(&w.weather[0].main, 7)
+                )
+            }
+            None => {
+                format!("{:02}:{:02} {:>10}", time.hour(), time.minute(), "WEATHER",)
+            }
+        };
 
         // Move to beginning of first row.
         self.lcd.reset(&mut Delay)?;
@@ -280,16 +301,24 @@ impl<'a, T: LightSensor> Display for HD44780Display<'a, T> {
         // If the temperature is less than -99° or > 999° we have other problems.
         // The X is replaced later with a degree symbol to ensure it is represented as one byte rather than multi-byte (which is what rust will do by default).
         // TODO: can we use b'º' ?
-        let second_row = format!(
-            "{} {} {:<2} {:>3}X{}",
-            day,
-            month,
-            time.day(),
-            &weather.main.temp.round(),
-            units.as_char(),
-        );
-        let mut second_row_as_bytes = second_row.as_bytes().to_vec();
-        second_row_as_bytes[14] = 0xDF;
+        let second_row_as_bytes = match weather {
+            Some(w) => {
+                let second_row = format!(
+                    "{} {} {:<2} {:>3}X{}",
+                    day,
+                    month,
+                    time.day(),
+                    &w.main.temp.round(),
+                    units.as_char(),
+                );
+                let mut second_row_as_bytes = second_row.as_bytes().to_vec();
+                second_row_as_bytes[14] = 0xDF;
+                second_row_as_bytes
+            }
+            None => format!("{} {} {:<2}   ERR", day, month, time.day())
+                .as_bytes()
+                .to_vec(),
+        };
 
         self.lcd.write_bytes(&second_row_as_bytes, &mut Delay)?;
 
@@ -369,7 +398,7 @@ impl<'a, T: LightSensor> Display for ILI9341Display<'a, T> {
     fn print(
         &mut self,
         time: &DateTime<Local>,
-        weather: &OpenWeather,
+        weather: &Option<OpenWeather>,
         units: &TemperatureUnits,
     ) -> Result<(), Error> {
         let day = &time.weekday().to_string()[0..3];
@@ -378,8 +407,13 @@ impl<'a, T: LightSensor> Display for ILI9341Display<'a, T> {
         let first_row = format!("{:02}:{:02}", time.hour(), time.minute());
 
         let second_row = format!("{} {} {:<2}", day, month, time.day());
-        let third_row = format!("{}", truncate_to_characters(&weather.weather[0].main, 7));
-        let fourth_row = format!("{:>3}°{}", &weather.main.temp.round(), units.as_char());
+        let (third_row, fourth_row) = match weather {
+            Some(w) => (
+                format!("{}", truncate_to_characters(&w.weather[0].main, 7)),
+                format!("{:>3}°{}", &w.main.temp.round(), units.as_char()),
+            ),
+            None => ("WEATHER".to_owned(), "ERR".to_owned()),
+        };
 
         let text = format!("{}\n{}\n{}", second_row, third_row, fourth_row);
 
@@ -463,10 +497,18 @@ impl<'a, T: LightSensor> Display for AlphaNum4Display<'a, T> {
     fn print(
         &mut self,
         _: &DateTime<Local>,
-        weather: &OpenWeather,
+        weather: &Option<OpenWeather>,
         units: &TemperatureUnits,
     ) -> Result<(), Error> {
-        let [d1, d2, d3] = split_temperature(weather.main.temp)?;
+        let [d1, d2, d3] = match weather {
+            Some(w) => split_temperature(w.main.temp)?,
+            None => ['E', 'R', 'R'],
+        };
+
+        let d4 = match weather {
+            Some(_) => units.as_char(),
+            None => ' ',
+        };
         adafruit_alphanum4::AlphaNum4::update_buffer_with_char(
             &mut self.ht16k33,
             adafruit_alphanum4::Index::One,
@@ -485,7 +527,7 @@ impl<'a, T: LightSensor> Display for AlphaNum4Display<'a, T> {
         adafruit_alphanum4::AlphaNum4::update_buffer_with_char(
             &mut self.ht16k33,
             adafruit_alphanum4::Index::Four,
-            adafruit_alphanum4::AsciiChar::new(units.as_char()),
+            adafruit_alphanum4::AsciiChar::new(d4),
         );
 
         self.ht16k33.write_display_buffer()?;
@@ -542,7 +584,7 @@ impl<'a, T: LightSensor> Display for SevenSegment4Display<'a, T> {
     fn print(
         &mut self,
         time: &DateTime<Local>,
-        _: &OpenWeather,
+        _: &Option<OpenWeather>,
         _: &TemperatureUnits,
     ) -> Result<(), Error> {
         let [d1, d2, d3, d4] = split_time(time)?;

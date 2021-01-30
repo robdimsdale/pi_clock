@@ -7,6 +7,8 @@ pub use open_weather_types::OpenWeather;
 use std::time::Duration;
 pub use units::TemperatureUnits;
 
+const TIMEOUT_MILLIS: u64 = 800;
+
 pub fn get_weather(
     appid: &str,
     lat: &str,
@@ -21,7 +23,9 @@ pub fn get_weather(
         units.to_string()
     );
 
-    let agent = ureq::builder().timeout(Duration::from_millis(500)).build();
+    let agent = ureq::builder()
+        .timeout(Duration::from_millis(TIMEOUT_MILLIS))
+        .build();
 
     let response = agent.get(&uri).call()?.into_string()?;
 

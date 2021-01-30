@@ -16,6 +16,7 @@ pub use weather::{OpenWeather, TemperatureUnits};
 
 const SLEEP_DURATION_MILLIS: u64 = 100;
 const WEATHER_DURATION_SECONDS: u64 = 600;
+const NO_WEATHER_ERROR_DURATION_SECONDS: u64 = 3 * WEATHER_DURATION_SECONDS;
 
 #[derive(Debug)]
 pub struct Error {
@@ -81,7 +82,13 @@ pub fn run<T: LightSensor>(
     let mut last_weather_attempt = time::Instant::now();
     let mut last_weather_success = time::Instant::now();
 
-    let mut weather = weather::get_weather(&open_weather_api_key, &lat, &lon, &units)?;
+    let mut weather = match weather::get_weather(&open_weather_api_key, &lat, &lon, &units) {
+        Ok(w) => Some(w),
+        Err(e) => {
+            warn!("Error getting initial weather: {}", e);
+            None
+        }
+    };
 
     loop {
         let now = time::Instant::now();
@@ -95,22 +102,34 @@ pub fn run<T: LightSensor>(
                 WEATHER_DURATION_SECONDS,
             );
 
-            if let Ok(updated_weather) =
-                weather::get_weather(&open_weather_api_key, &lat, &lon, &units)
-            {
-                info!("successfully updated weather");
+            match weather::get_weather(&open_weather_api_key, &lat, &lon, &units) {
+                Ok(updated_weather) => {
+                    info!("successfully updated weather");
 
-                last_weather_success = last_weather_attempt;
-                weather = updated_weather
-            } else {
-                warn!(
-                    "failed to update weather (using previous weather). {}s since last success",
-                    now.duration_since(last_weather_success).as_secs()
-                );
-            }
+                    last_weather_success = now;
+                    weather = Some(updated_weather)
+                }
+                Err(e) => {
+                    warn!(
+                        "Error updating weather: {}. Using previous weather. {}s since last success", e,
+                        now.duration_since(last_weather_success).as_secs()
+                    );
+                }
+            };
         }
 
-        display.print(&Local::now(), &weather, &units)?;
+        if time::Instant::now()
+            > last_weather_success + time::Duration::from_secs(NO_WEATHER_ERROR_DURATION_SECONDS)
+        {
+            // TODO: print error or clear display or something. Make sure to still print the time!
+            warn!(
+                "no successful weather in over {}s. Displaying empty weather",
+                NO_WEATHER_ERROR_DURATION_SECONDS
+            );
+            display.print(&Local::now(), &None, &units)?;
+        } else {
+            display.print(&Local::now(), &weather, &units)?;
+        }
 
         thread::sleep(time::Duration::from_millis(SLEEP_DURATION_MILLIS));
     }
