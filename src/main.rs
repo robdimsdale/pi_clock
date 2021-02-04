@@ -1,5 +1,5 @@
 use log::{debug, info};
-use simplelog::{Config, LevelFilter, TermLogger, TerminalMode};
+use simplelog::{ConfigBuilder, LevelFilter, TermLogger, TerminalMode};
 use structopt::StructOpt;
 
 const CONSOLE_DISPLAY_TYPE: &'static str = "console";
@@ -18,7 +18,8 @@ const TIME_LIGHT_SENSOR_TYPE: &'static str = "time";
 const VEML7700_LIGHT_SENSOR_TYPE: &'static str = "veml7700";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    TermLogger::init(LevelFilter::Warn, Config::default(), TerminalMode::Mixed)?;
+    let log_config = ConfigBuilder::new().set_time_to_local(true).build();
+    TermLogger::init(LevelFilter::Warn, log_config, TerminalMode::Mixed)?;
     debug!("logger initialized");
 
     let args = Cli::from_args();
@@ -78,29 +79,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Initialization complete");
 
-    pi_clock::run(
-        &args.open_weather_api_key,
-        &args.lat,
-        &args.lon,
-        &args.units,
-        &mut display,
-    )?;
+    pi_clock::run(&args.uri, &mut display)?;
 
     Ok(())
 }
 #[derive(StructOpt)]
 struct Cli {
     #[structopt(long)]
-    open_weather_api_key: String,
-
-    #[structopt(long)]
-    lat: String,
-
-    #[structopt(long)]
-    lon: String,
-
-    #[structopt(long, default_value = "imperial")] // TODO: can we avoid hard-coding this?
-    units: pi_clock::TemperatureUnits,
+    uri: String,
 
     #[structopt(long, default_value=RANDOM_LIGHT_SENSOR_TYPE)]
     light_sensor_type: String,

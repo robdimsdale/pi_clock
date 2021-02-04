@@ -12,10 +12,10 @@ pub use light::{LightSensor, LightSensorType, RandomLightSensor, TimeLightSensor
 use log::{info, warn};
 use std::fmt;
 use std::{thread, time};
-pub use weather::{OpenWeather, TemperatureUnits};
+pub use weather::OpenWeather;
 
-const SLEEP_DURATION_MILLIS: u64 = 100;
-const WEATHER_DURATION_SECONDS: u64 = 600;
+const SLEEP_DURATION_MILLIS: u64 = 1000;
+const WEATHER_DURATION_SECONDS: u64 = 60;
 const NO_WEATHER_ERROR_DURATION_SECONDS: u64 = 3 * WEATHER_DURATION_SECONDS;
 
 #[derive(Debug)]
@@ -72,17 +72,11 @@ impl From<display::Error> for Error {
     }
 }
 
-pub fn run<T: LightSensor>(
-    open_weather_api_key: &str,
-    lat: &str,
-    lon: &str,
-    units: &TemperatureUnits,
-    display: &mut display::DisplayType<T>,
-) -> Result<(), Error> {
+pub fn run<T: LightSensor>(uri: &str, display: &mut display::DisplayType<T>) -> Result<(), Error> {
     let mut last_weather_attempt = time::Instant::now();
     let mut last_weather_success = time::Instant::now();
 
-    let mut weather = match weather::get_weather(&open_weather_api_key, &lat, &lon, &units) {
+    let mut weather = match weather::get_weather(&uri) {
         Ok(w) => Some(w),
         Err(e) => {
             warn!("Error getting initial weather: {}", e);
@@ -102,7 +96,7 @@ pub fn run<T: LightSensor>(
                 WEATHER_DURATION_SECONDS,
             );
 
-            match weather::get_weather(&open_weather_api_key, &lat, &lon, &units) {
+            match weather::get_weather(&uri) {
                 Ok(updated_weather) => {
                     info!("successfully updated weather");
 
@@ -118,17 +112,15 @@ pub fn run<T: LightSensor>(
             };
         }
 
-        if time::Instant::now()
-            > last_weather_success + time::Duration::from_secs(NO_WEATHER_ERROR_DURATION_SECONDS)
+        if now > last_weather_success + time::Duration::from_secs(NO_WEATHER_ERROR_DURATION_SECONDS)
         {
-            // TODO: print error or clear display or something. Make sure to still print the time!
             warn!(
                 "no successful weather in over {}s. Displaying empty weather",
                 NO_WEATHER_ERROR_DURATION_SECONDS
             );
-            display.print(&Local::now(), &None, &units)?;
+            display.print(&Local::now(), &None)?;
         } else {
-            display.print(&Local::now(), &weather, &units)?;
+            display.print(&Local::now(), &weather)?;
         }
 
         thread::sleep(time::Duration::from_millis(SLEEP_DURATION_MILLIS));
