@@ -340,6 +340,9 @@ pub struct ILI9341Display<'a, T: LightSensor> {
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> ILI9341Display<'a, T> {
     pub fn new(light_sensor: &'a T) -> Result<Self, Error> {
+        // Using BCM numbers
+        // i.e. pin 0 corresponds to wiringpi 30 and physical 27
+
         let default_brightness = 1.0;
         // pwm0 is pin 18
         let pwm0 = Pwm::with_frequency(
