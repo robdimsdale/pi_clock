@@ -18,7 +18,10 @@ const TIME_LIGHT_SENSOR_TYPE: &'static str = "time";
 const VEML7700_LIGHT_SENSOR_TYPE: &'static str = "veml7700";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let log_config = ConfigBuilder::new().set_time_to_local(true).build();
+    let log_config = ConfigBuilder::new()
+        .set_time_to_local(true)
+        .set_time_format_str("%F %T") // i.e. '2020-02-27 15:12:02'
+        .build();
     TermLogger::init(LevelFilter::Warn, log_config, TerminalMode::Mixed)?;
     debug!("logger initialized");
 
