@@ -110,10 +110,10 @@ impl<'a, T: LightSensor> Display for Console16x2Display<'a, T> {
         time: &DateTime<Local>,
         weather: &Option<OpenWeather>,
     ) -> Result<(), Error> {
-        let (weather_desc, temp_str) = console_weather_and_temp_str(&weather);
+        let (weather_desc, temp_str) = console_weather_and_temp_str(&weather, 3, 7);
 
         let first_row = format!("{} {:>10}", console_time_str(&time), weather_desc);
-        let second_row = format!("{} {:>5}", console_date_str(&time), temp_str);
+        let second_row = format!("{} {}", console_date_str(&time), temp_str);
 
         println!();
         println!("-{}-", std::iter::repeat("-").take(16).collect::<String>());
@@ -144,17 +144,29 @@ fn console_time_str(time: &DateTime<Local>) -> String {
     format!("{}{}:{}{}", st[0], st[1], st[2], st[3])
 }
 
-fn console_weather_and_temp_str(weather: &Option<OpenWeather>) -> (String, String) {
+fn console_weather_and_temp_str(
+    weather: &Option<OpenWeather>,
+    temp_digits: usize,
+    weather_chars: usize,
+) -> (String, String) {
     match weather {
         Some(w) => (
-            truncate_to_characters(&w.weather[0].main, 7),
             format!(
-                "{}°{}",
-                split_temperature(w.main.temp).iter().collect::<String>(),
+                "{:>width$}",
+                truncate_to_characters(&w.weather[0].main, weather_chars),
+                width = weather_chars
+            ),
+            format!(
+                "{:>width$}°{}",
+                w.main.temp.round(),
                 UNIT_CHAR,
+                width = temp_digits
             ),
         ),
-        None => ("WEATHER".to_owned(), "ERR".to_owned()),
+        None => (
+            format!("{:>width$}", "WEATHER", width = weather_chars),
+            format!("{:>width$}", "ERR", width = temp_digits + 2),
+        ),
     }
 }
 
@@ -176,17 +188,27 @@ impl<'a, T: LightSensor> Display for Console20x4Display<'a, T> {
         time: &DateTime<Local>,
         weather: &Option<OpenWeather>,
     ) -> Result<(), Error> {
-        let (weather_desc, temp_str) = console_weather_and_temp_str(&weather);
+        let (weather_desc, temp_str) = console_weather_and_temp_str(&weather, 3, 14);
 
-        let first_row = format!("{} {:>10}", console_time_str(&time), weather_desc);
-        let second_row = format!("{} {:>5}", console_date_str(&time), temp_str);
+        // time is always 5 chars, date is always 10 chars
+        let first_row = format!("{} {:>14}", console_time_str(&time), weather_desc);
+        let second_row = format!("{} {:>9}", console_date_str(&time), temp_str);
+
+        //       let first_row = format!("{} {}", console_time_str(&time), console_date_str(&time));
+        //let second_row = format!("{}  {:>10}", temp_str, weather_desc);
+        //        let second_row = format!("{:<10} {}", weather_desc, temp_str);
+
+        // let third_row = format!("{:<20}", "No rain all day");
+        let third_row = format!("{:<20}", "");
+        let fourth_row = format!("{:<20}", "No rain all day");
+        //let fourth_row = format!("{:<20}", "High: 103°F at 14:30");
 
         println!();
         println!("-{}-", std::iter::repeat("-").take(20).collect::<String>());
-        println!("|{}{}|", first_row, "    ");
-        println!("|{}{}|", second_row, "    ");
-        println!("|{}|", std::iter::repeat(" ").take(20).collect::<String>());
-        println!("|{}|", std::iter::repeat(" ").take(20).collect::<String>());
+        println!("|{}|", first_row);
+        println!("|{}|", second_row);
+        println!("|{}|", third_row);
+        println!("|{}|", fourth_row);
         println!("-{}-", std::iter::repeat("-").take(20).collect::<String>());
 
         println!(
@@ -534,7 +556,12 @@ impl<'a, T: LightSensor> AlphaNum4Display<'a, T> {
 impl<'a, T: LightSensor> Display for AlphaNum4Display<'a, T> {
     fn print(&mut self, _: &DateTime<Local>, weather: &Option<OpenWeather>) -> Result<(), Error> {
         let [d1, d2, d3] = match weather {
-            Some(w) => split_temperature(w.main.temp),
+            Some(w) => {
+                let chars = format!("{:>3}", w.main.temp.round())
+                    .chars()
+                    .collect::<Vec<char>>();
+                [chars[0], chars[1], chars[2]]
+            }
             None => ['E', 'R', 'R'],
         };
 
@@ -659,33 +686,6 @@ fn split_time(t: &DateTime<Local>) -> Result<[u8; 4], Error> {
     Ok([d1, d2, d3, d4])
 }
 
-// Round the temperature to a whole number and pad with spaces where possible.
-// Panics if the input is >= 1000 or <= -100 (i.e. more than three characters are needed)
-//
-// If the temperature can be represented with two digits (i.e. 0<=t<=99)
-// then leave a gap between the digits and the temperature char
-// If the temperature needs three digits (or two digits and the negative sign) then skip the gap
-// If the temperature is 1 digit then leave a gap either side
-// If the temperature is negative 1 digit then add a negative sign before and a gap after
-//
-// Examples:
-//  46.0 -> '46 °F'
-// 123.0 -> '123°F'
-// 123.4 -> '123°F'
-// 275.4 -> '275°F'
-//   1.4 -> ' 1 °F'
-//  -1.4 -> '-1 °F'
-// -12.4 -> '-12°F'
-fn split_temperature(temp: f32) -> [char; 3] {
-    assert!(temp < 1000.0, "temperature too high");
-    assert!(temp > -100.0, "temperature too low");
-
-    let res = format!("{:>3}", temp.round())
-        .chars()
-        .collect::<Vec<char>>();
-    [res[0], res[1], res[2]]
-}
-
 fn truncate_to_characters(s: &str, length: usize) -> String {
     if s.len() <= length {
         return s.to_owned();
@@ -708,29 +708,6 @@ mod tests {
         assert_eq!(truncate_to_characters("abcdefg", 5), "a'efg");
         assert_eq!(truncate_to_characters("Tornado", 7), "Tornado");
         assert_eq!(truncate_to_characters("Thunderstorm", 7), "T'storm");
-    }
-
-    #[test]
-    fn test_split_temperature() {
-        assert_eq!(split_temperature(46.0), [' ', '4', '6']);
-        assert_eq!(split_temperature(123.0), ['1', '2', '3']);
-        assert_eq!(split_temperature(123.4), ['1', '2', '3']);
-        assert_eq!(split_temperature(275.4), ['2', '7', '5']);
-        assert_eq!(split_temperature(1.4), [' ', ' ', '1']);
-        assert_eq!(split_temperature(-1.4), [' ', '-', '1']);
-        assert_eq!(split_temperature(-12.4), ['-', '1', '2']);
-    }
-
-    #[test]
-    #[should_panic(expected = "temperature too high")]
-    fn test_split_temperature_too_high_panics() {
-        split_temperature(1000.0);
-    }
-
-    #[test]
-    #[should_panic(expected = "temperature too low")]
-    fn test_split_temperature_too_low_panics() {
-        split_temperature(-100.0);
     }
 
     #[test]
