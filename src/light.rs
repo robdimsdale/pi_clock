@@ -33,8 +33,8 @@ use rppal::i2c::I2c;
 #[cfg(target_arch = "arm")]
 use veml6030::{SlaveAddr, Veml6030};
 
-const MAX_LUX: f32 = 50.0;
-const MIN_LUX: f32 = 1.0;
+const MAX_LUX: f32 = 1.0;
+const MIN_LUX: f32 = 0.01;
 
 lazy_static! {
     static ref MAX_LUX_START_TIME: NaiveTime = NaiveTime::from_hms(8, 0, 0);
