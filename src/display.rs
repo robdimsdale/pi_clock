@@ -253,13 +253,13 @@ impl<'a, T: LightSensor> HD44780Display<'a, T> {
 
         let rs = Pin::new(21);
         let en = Pin::new(20);
-        let db4 = Pin::new(26);
+        let db4 = Pin::new(19); // prev: 26
         let db5 = Pin::new(13);
         let db6 = Pin::new(6);
         let db7 = Pin::new(5);
         let r = Pin::new(17);
-        let g = Pin::new(16);
-        let b = Pin::new(19);
+        // let g = Pin::new(16);
+        // let b = Pin::new(19);
 
         let default_brightness = 1.0;
         // pwm0 is pin 18
@@ -280,8 +280,8 @@ impl<'a, T: LightSensor> HD44780Display<'a, T> {
         db6.export()?;
         db7.export()?;
         r.export()?;
-        g.export()?;
-        b.export()?;
+        // g.export()?;
+        // b.export()?;
 
         rs.set_direction(Direction::Low)?;
         en.set_direction(Direction::Low)?;
@@ -290,8 +290,8 @@ impl<'a, T: LightSensor> HD44780Display<'a, T> {
         db6.set_direction(Direction::Low)?;
         db7.set_direction(Direction::Low)?;
         r.set_direction(Direction::Low)?; // Default to red on; green and blue off
-        g.set_direction(Direction::High)?;
-        b.set_direction(Direction::High)?;
+                                          // g.set_direction(Direction::High)?;
+                                          // b.set_direction(Direction::High)?;
 
         let mut lcd = HD44780::new_4bit(rs, en, db4, db5, db6, db7, &mut Delay)?;
 
