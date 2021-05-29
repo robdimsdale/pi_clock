@@ -127,16 +127,14 @@ impl<'a, T: LightSensor> Display for Console16x2Display<'a, T> {
         let day = &time.weekday().to_string()[0..3];
         let month = &mmm_from_time(time);
 
-        // temperature is right-aligned with three characters max (including sign).
-        // If the temperature is less than -99° or > 999° we have other problems.
         let second_row = match weather {
             Some(w) => {
                 format!(
-                    "{} {} {:<2} {:>3}°{}",
+                    "{} {} {:<2} {}°{}",
                     day,
                     month,
                     time.day(),
-                    &w.main.temp.round(),
+                    split_temperature(w.main.temp).iter().collect::<String>(),
                     UNIT_CHAR,
                 )
             }
@@ -562,7 +560,7 @@ impl<'a, T: LightSensor> AlphaNum4Display<'a, T> {
 impl<'a, T: LightSensor> Display for AlphaNum4Display<'a, T> {
     fn print(&mut self, _: &DateTime<Local>, weather: &Option<OpenWeather>) -> Result<(), Error> {
         let [d1, d2, d3] = match weather {
-            Some(w) => split_temperature(w.main.temp)?,
+            Some(w) => split_temperature(w.main.temp),
             None => ['E', 'R', 'R'],
         };
 
@@ -704,34 +702,14 @@ fn split_time(t: &DateTime<Local>) -> Result<[u8; 4], Error> {
 //   1.4 -> ' 1 °F'
 //  -1.4 -> '-1 °F'
 // -12.4 -> '-12°F'
-fn split_temperature(temp: f32) -> Result<[char; 3], Error> {
+fn split_temperature(temp: f32) -> [char; 3] {
     assert!(temp < 1000.0, "temperature too high");
     assert!(temp > -100.0, "temperature too low");
 
-    let is_negative = temp < 0.;
-    let zero_char_as_u8 = 48;
-
-    let temp = if is_negative { -temp } else { temp };
-
-    let d3 = ((temp.round() as u16 % 10) as u8 + zero_char_as_u8) as char;
-    let d2 = ((temp.round() as u16 / 10) as u8 % 10 + zero_char_as_u8) as char;
-    let d1 = ((temp.round() as u16 / 100) as u8 % 10 + zero_char_as_u8) as char;
-
-    let (d1, d2, d3) = if (is_negative && temp >= 10.0) || temp > 100. {
-        (d1, d2, d3)
-    } else {
-        (d2, d3, ' ')
-    };
-    let d1 = if is_negative { '-' } else { d1 };
-
-    let d1 = if d1 == '0' { ' ' } else { d1 };
-
-    // TODO: Explore degree symbol instead of space
-    // To emulate a degree symbol use the following:
-    // 0b XNMLKJIHGGFEDCBA>
-    // 0b X000000011100011
-
-    Ok([d1, d2, d3])
+    let res = format!("{:>3}", temp.round())
+        .chars()
+        .collect::<Vec<char>>();
+    [res[0], res[1], res[2]]
 }
 
 fn truncate_to_characters(s: &str, length: usize) -> String {
@@ -759,27 +737,26 @@ mod tests {
     }
 
     #[test]
-    fn test_split_temperature() -> Result<(), Box<dyn std::error::Error>> {
-        assert_eq!(split_temperature(46.0)?, ['4', '6', ' ']);
-        assert_eq!(split_temperature(123.0)?, ['1', '2', '3']);
-        assert_eq!(split_temperature(123.4)?, ['1', '2', '3']);
-        assert_eq!(split_temperature(275.4)?, ['2', '7', '5']);
-        assert_eq!(split_temperature(1.4)?, [' ', '1', ' ']);
-        assert_eq!(split_temperature(-1.4)?, ['-', '1', ' ']);
-        assert_eq!(split_temperature(-12.4)?, ['-', '1', '2']);
-        Ok(())
+    fn test_split_temperature() {
+        assert_eq!(split_temperature(46.0), [' ', '4', '6']);
+        assert_eq!(split_temperature(123.0), ['1', '2', '3']);
+        assert_eq!(split_temperature(123.4), ['1', '2', '3']);
+        assert_eq!(split_temperature(275.4), ['2', '7', '5']);
+        assert_eq!(split_temperature(1.4), [' ', ' ', '1']);
+        assert_eq!(split_temperature(-1.4), [' ', '-', '1']);
+        assert_eq!(split_temperature(-12.4), ['-', '1', '2']);
     }
 
     #[test]
     #[should_panic(expected = "temperature too high")]
     fn test_split_temperature_too_high_panics() {
-        split_temperature(1000.0).unwrap();
+        split_temperature(1000.0);
     }
 
     #[test]
     #[should_panic(expected = "temperature too low")]
     fn test_split_temperature_too_low_panics() {
-        split_temperature(-100.0).unwrap();
+        split_temperature(-100.0);
     }
 
     #[test]
