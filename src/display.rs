@@ -41,7 +41,9 @@ pub enum DisplayType<'a, T: LightSensor> {
     Console20x4(Console20x4Display<'a, T>),
 
     #[cfg(target_arch = "arm")]
-    HD44780(HD44780Display<'a, T>),
+    LCD16x2(LCD16x2Display<'a, T>),
+    #[cfg(target_arch = "arm")]
+    LCD20x4(LCD20x4Display<'a, T>),
 
     #[cfg(target_arch = "arm")]
     ILI9341(ILI9341Display<'a, T>),
@@ -66,7 +68,9 @@ impl<'a, T: LightSensor> DisplayType<'a, T> {
             Self::Console20x4(display) => display.print(time, weather),
 
             #[cfg(target_arch = "arm")]
-            Self::HD44780(display) => display.print(time, weather),
+            Self::LCD16x2(display) => display.print(time, weather),
+            #[cfg(target_arch = "arm")]
+            Self::LCD20x4(display) => display.print(time, weather),
 
             #[cfg(target_arch = "arm")]
             Self::ILI9341(display) => display.print(time, weather),
@@ -228,7 +232,7 @@ fn mmm_from_time(time: &DateTime<Local>) -> String {
 }
 
 #[cfg(target_arch = "arm")]
-pub struct HD44780Display<'a, T: LightSensor> {
+pub struct LCD16x2Display<'a, T: LightSensor> {
     lcd: HD44780<
         FourBitBus<
             linux_embedded_hal::Pin,
@@ -246,7 +250,170 @@ pub struct HD44780Display<'a, T: LightSensor> {
 }
 
 #[cfg(target_arch = "arm")]
-impl<'a, T: LightSensor> HD44780Display<'a, T> {
+impl<'a, T: LightSensor> LCD16x2Display<'a, T> {
+    pub fn new(light_sensor: &'a T) -> Result<Self, Error> {
+        // Using BCM numbers
+        // i.e. pin 0 corresponds to wiringpi 30 and physical 27
+
+        let rs = Pin::new(21);
+        let en = Pin::new(20);
+        let db4 = Pin::new(26);
+        let db5 = Pin::new(13);
+        let db6 = Pin::new(6);
+        let db7 = Pin::new(5);
+        let r = Pin::new(17);
+        let g = Pin::new(16);
+        let b = Pin::new(19);
+
+        let default_brightness = 1.0;
+        // pwm0 is pin 18
+        let pwm0 = Pwm::with_frequency(
+            Channel::Pwm0,
+            20000.0,
+            default_brightness,
+            Polarity::Normal,
+            false,
+        )?;
+
+        pwm0.enable()?;
+
+        rs.export()?;
+        en.export()?;
+        db4.export()?;
+        db5.export()?;
+        db6.export()?;
+        db7.export()?;
+        r.export()?;
+        g.export()?;
+        b.export()?;
+
+        rs.set_direction(Direction::Low)?;
+        en.set_direction(Direction::Low)?;
+        db4.set_direction(Direction::Low)?;
+        db5.set_direction(Direction::Low)?;
+        db6.set_direction(Direction::Low)?;
+        db7.set_direction(Direction::Low)?;
+        r.set_direction(Direction::Low)?; // Default to red on; green and blue off
+        g.set_direction(Direction::High)?;
+        b.set_direction(Direction::High)?;
+
+        let mut lcd = HD44780::new_4bit(rs, en, db4, db5, db6, db7, &mut Delay)?;
+
+        lcd.reset(&mut Delay)?;
+        lcd.clear(&mut Delay)?;
+
+        lcd.set_display_mode(
+            DisplayMode {
+                display: HD44780DisplaySetting::On,
+                cursor_visibility: Cursor::Invisible,
+                cursor_blink: CursorBlink::Off,
+            },
+            &mut Delay,
+        )?;
+
+        Ok(LCD16x2Display {
+            lcd: lcd,
+            brightness_pwm: pwm0,
+            light_sensor: light_sensor,
+        })
+    }
+
+    fn set_brightness(&mut self, brightness: f32) -> Result<(), Error> {
+        debug!("Brightness: {}", brightness);
+
+        self.brightness_pwm.set_duty_cycle(brightness as f64)?;
+
+        Ok(())
+    }
+}
+
+#[cfg(target_arch = "arm")]
+impl<'a, T: LightSensor> Display for LCD16x2Display<'a, T> {
+    fn print(
+        &mut self,
+        time: &DateTime<Local>,
+        weather: &Option<OpenWeather>,
+    ) -> Result<(), Error> {
+        let first_row = match weather {
+            Some(w) => {
+                format!(
+                    "{:02}:{:02} {:>10}",
+                    time.hour(),
+                    time.minute(),
+                    truncate_to_characters(&w.weather[0].main, 7)
+                )
+            }
+            None => {
+                format!("{:02}:{:02} {:>10}", time.hour(), time.minute(), "WEATHER",)
+            }
+        };
+
+        // Move to beginning of first row.
+        self.lcd.reset(&mut Delay)?;
+
+        self.lcd.write_str(&first_row, &mut Delay)?;
+
+        // Move to line 2
+        self.lcd.set_cursor_pos(40, &mut Delay)?;
+
+        let day = &time.weekday().to_string()[0..3];
+        let month = &mmm_from_time(time);
+
+        // temperature is right-aligned with three characters max (including sign).
+        // If the temperature is less than -99° or > 999° we have other problems.
+        // The X is replaced later with a degree symbol to ensure it is represented as one byte rather than multi-byte (which is what rust will do by default).
+        // TODO: can we use b'º' ?
+        let second_row_as_bytes = match weather {
+            Some(w) => {
+                let second_row = format!(
+                    "{} {} {:<2} {:>3}X{}",
+                    day,
+                    month,
+                    time.day(),
+                    &w.main.temp.round(),
+                    UNIT_CHAR,
+                );
+                let mut second_row_as_bytes = second_row.as_bytes().to_vec();
+                second_row_as_bytes[14] = 0xDF;
+                second_row_as_bytes
+            }
+            None => format!("{} {} {:<2}   ERR", day, month, time.day())
+                .as_bytes()
+                .to_vec(),
+        };
+
+        self.lcd.write_bytes(&second_row_as_bytes, &mut Delay)?;
+
+        let brightness = self.light_sensor.read_light_normalized()?;
+        let min_brightness = 0.01;
+        let brightness = brightness.max(min_brightness);
+
+        self.set_brightness(brightness)?;
+
+        Ok(())
+    }
+}
+
+#[cfg(target_arch = "arm")]
+pub struct LCD20x4Display<'a, T: LightSensor> {
+    lcd: HD44780<
+        FourBitBus<
+            linux_embedded_hal::Pin,
+            linux_embedded_hal::Pin,
+            linux_embedded_hal::Pin,
+            linux_embedded_hal::Pin,
+            linux_embedded_hal::Pin,
+            linux_embedded_hal::Pin,
+        >,
+    >,
+
+    brightness_pwm: Pwm,
+
+    light_sensor: &'a T,
+}
+
+#[cfg(target_arch = "arm")]
+impl<'a, T: LightSensor> LCD20x4Display<'a, T> {
     pub fn new(light_sensor: &'a T) -> Result<Self, Error> {
         // Using BCM numbers
         // i.e. pin 0 corresponds to wiringpi 30 and physical 27
@@ -307,7 +474,7 @@ impl<'a, T: LightSensor> HD44780Display<'a, T> {
             &mut Delay,
         )?;
 
-        Ok(HD44780Display {
+        Ok(LCD20x4Display {
             lcd: lcd,
             brightness_pwm: pwm0,
             light_sensor: light_sensor,
@@ -324,7 +491,7 @@ impl<'a, T: LightSensor> HD44780Display<'a, T> {
 }
 
 #[cfg(target_arch = "arm")]
-impl<'a, T: LightSensor> Display for HD44780Display<'a, T> {
+impl<'a, T: LightSensor> Display for LCD20x4Display<'a, T> {
     fn print(
         &mut self,
         time: &DateTime<Local>,

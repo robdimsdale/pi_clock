@@ -6,7 +6,9 @@ const CONSOLE_16X2_DISPLAY_TYPE: &'static str = "console-16x2";
 const CONSOLE_20X4_DISPLAY_TYPE: &'static str = "console-20x4";
 
 #[cfg(target_arch = "arm")]
-const HD44780_DISPLAY_TYPE: &'static str = "hd44780";
+const LCD_16X2_DISPLAY_TYPE: &'static str = "lcd-16x2";
+#[cfg(target_arch = "arm")]
+const LCD_20X4_DISPLAY_TYPE: &'static str = "lcd-20x4";
 #[cfg(target_arch = "arm")]
 const ILI9341_DISPLAY_TYPE: &'static str = "ili9341";
 #[cfg(target_arch = "arm")]
@@ -59,8 +61,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 )),
 
                 #[cfg(target_arch = "arm")]
-                HD44780_DISPLAY_TYPE => Ok(pi_clock::DisplayType::HD44780(
-                    pi_clock::HD44780Display::new(&light_sensor)?,
+                LCD_16X2_DISPLAY_TYPE => Ok(pi_clock::DisplayType::LCD16x2(
+                    pi_clock::LCD16x2Display::new(&light_sensor)?,
+                )),
+
+                #[cfg(target_arch = "arm")]
+                LCD_20X4_DISPLAY_TYPE => Ok(pi_clock::DisplayType::LCD20x4(
+                    pi_clock::LCD20x4Display::new(&light_sensor)?,
                 )),
 
                 #[cfg(target_arch = "arm")]
