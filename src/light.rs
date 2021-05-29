@@ -27,6 +27,8 @@ use rand::prelude::*;
 use std::sync::Mutex;
 
 #[cfg(target_arch = "arm")]
+use log::debug;
+#[cfg(target_arch = "arm")]
 use rppal::i2c::I2c;
 #[cfg(target_arch = "arm")]
 use veml6030::{SlaveAddr, Veml6030};
@@ -150,7 +152,10 @@ impl VEML7700LightSensor {
 #[cfg(target_arch = "arm")]
 impl LightSensor for VEML7700LightSensor {
     fn read_light_normalized(&self) -> Result<f32, Error> {
-        Ok(normalize_lux(self.sensor.lock()?.read_lux()?))
+        let lux = self.sensor.lock()?.read_lux()?;
+        debug!("Lux: {}", lux);
+
+        Ok(normalize_lux(lux))
     }
 }
 
