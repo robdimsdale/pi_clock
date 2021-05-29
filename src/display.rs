@@ -110,38 +110,11 @@ impl<'a, T: LightSensor> Display for Console16x2Display<'a, T> {
         time: &DateTime<Local>,
         weather: &Option<OpenWeather>,
     ) -> Result<(), Error> {
-        let first_row = match weather {
-            Some(w) => {
-                format!(
-                    "{:02}:{:02} {:>10}",
-                    time.hour(),
-                    time.minute(),
-                    truncate_to_characters(&w.weather[0].main, 7)
-                )
-            }
-            None => {
-                format!("{:02}:{:02} {:>10}", time.hour(), time.minute(), "WEATHER")
-            }
-        };
+        let (weather_desc, temp_str) = console_weather_and_temp_str(&weather);
 
-        let day = &time.weekday().to_string()[0..3];
-        let month = &mmm_from_time(time);
+        let first_row = format!("{} {:>10}", console_time_str(&time), weather_desc);
+        let second_row = format!("{} {:>5}", console_date_str(&time), temp_str);
 
-        let second_row = match weather {
-            Some(w) => {
-                format!(
-                    "{} {} {:<2} {}°{}",
-                    day,
-                    month,
-                    time.day(),
-                    split_temperature(w.main.temp).iter().collect::<String>(),
-                    UNIT_CHAR,
-                )
-            }
-            None => {
-                format!("{} {} {:<2}   ERR", day, month, time.day())
-            }
-        };
         println!();
         println!("-{}-", std::iter::repeat("-").take(16).collect::<String>());
         println!("|{}|", first_row);
@@ -154,6 +127,34 @@ impl<'a, T: LightSensor> Display for Console16x2Display<'a, T> {
         );
 
         Ok(())
+    }
+}
+
+fn console_date_str(time: &DateTime<Local>) -> String {
+    format!(
+        "{} {} {:<2}",
+        &time.weekday().to_string()[0..3],
+        &mmm_from_time(time),
+        time.day()
+    )
+}
+
+fn console_time_str(time: &DateTime<Local>) -> String {
+    let st = split_time(time).unwrap(); // TODO: remove error from signature
+    format!("{}{}:{}{}", st[0], st[1], st[2], st[3])
+}
+
+fn console_weather_and_temp_str(weather: &Option<OpenWeather>) -> (String, String) {
+    match weather {
+        Some(w) => (
+            truncate_to_characters(&w.weather[0].main, 7),
+            format!(
+                "{}°{}",
+                split_temperature(w.main.temp).iter().collect::<String>(),
+                UNIT_CHAR,
+            ),
+        ),
+        None => ("WEATHER".to_owned(), "ERR".to_owned()),
     }
 }
 
@@ -175,45 +176,18 @@ impl<'a, T: LightSensor> Display for Console20x4Display<'a, T> {
         time: &DateTime<Local>,
         weather: &Option<OpenWeather>,
     ) -> Result<(), Error> {
-        let first_row = match weather {
-            Some(w) => {
-                format!(
-                    "{:02}:{:02} {:>10}",
-                    time.hour(),
-                    time.minute(),
-                    truncate_to_characters(&w.weather[0].main, 7)
-                )
-            }
-            None => {
-                format!("{:02}:{:02} {:>10}", time.hour(), time.minute(), "WEATHER")
-            }
-        };
+        let (weather_desc, temp_str) = console_weather_and_temp_str(&weather);
 
-        let day = &time.weekday().to_string()[0..3];
-        let month = &mmm_from_time(time);
+        let first_row = format!("{} {:>10}", console_time_str(&time), weather_desc);
+        let second_row = format!("{} {:>5}", console_date_str(&time), temp_str);
 
-        // temperature is right-aligned with three characters max (including sign).
-        // If the temperature is less than -99° or > 999° we have other problems.
-        let second_row = match weather {
-            Some(w) => {
-                format!(
-                    "{} {} {:<2} {:>3}°{}",
-                    day,
-                    month,
-                    time.day(),
-                    &w.main.temp.round(),
-                    UNIT_CHAR,
-                )
-            }
-            None => {
-                format!("{} {} {:<2}   ERR", day, month, time.day())
-            }
-        };
         println!();
-        println!("-{}-", std::iter::repeat("-").take(16).collect::<String>());
-        println!("|{}|", first_row);
-        println!("|{}|", second_row);
-        println!("-{}-", std::iter::repeat("-").take(16).collect::<String>());
+        println!("-{}-", std::iter::repeat("-").take(20).collect::<String>());
+        println!("|{}{}|", first_row, "    ");
+        println!("|{}{}|", second_row, "    ");
+        println!("|{}|", std::iter::repeat(" ").take(20).collect::<String>());
+        println!("|{}|", std::iter::repeat(" ").take(20).collect::<String>());
+        println!("-{}-", std::iter::repeat("-").take(20).collect::<String>());
 
         println!(
             "Current light: {}",
