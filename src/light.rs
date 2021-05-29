@@ -188,6 +188,11 @@ fn normalize_lux(lux: f32) -> f32 {
 mod tests {
     use super::*;
 
+    fn round(number: f32, places: i32) -> f32 {
+        let factor = 10_f32.powi(places);
+        (number * factor).round() / factor
+    }
+
     #[test]
     fn test_normalize_lux() {
         assert_eq!(normalize_lux(MIN_LUX), 0.);
@@ -201,37 +206,54 @@ mod tests {
         // Full brightness
 
         assert_eq!(
-            time_based_brightness_for_time(&(*MAX_LUX_START_TIME)).unwrap(),
+            round(
+                time_based_brightness_for_time(&(*MAX_LUX_START_TIME)).unwrap(),
+                0
+            ),
             1.
         );
 
         assert_eq!(
-            time_based_brightness_for_time(
-                &(*MAX_LUX_START_TIME + chrono::Duration::nanoseconds(1))
-            )
-            .unwrap(),
-            1.
-        );
-
-        assert_eq!(
-            time_based_brightness_for_time(&(*MAX_LUX_END_TIME - chrono::Duration::nanoseconds(1)))
+            round(
+                time_based_brightness_for_time(
+                    &(*MAX_LUX_START_TIME + chrono::Duration::nanoseconds(1))
+                )
                 .unwrap(),
+                0
+            ),
+            1.
+        );
+
+        assert_eq!(
+            round(
+                time_based_brightness_for_time(
+                    &(*MAX_LUX_END_TIME - chrono::Duration::nanoseconds(1))
+                )
+                .unwrap(),
+                0
+            ),
             1.
         );
 
         // Scaling from brightness to darkness
 
         assert_eq!(
-            time_based_brightness_for_time(&(*MAX_LUX_END_TIME)).unwrap(),
+            round(
+                time_based_brightness_for_time(&(*MAX_LUX_END_TIME)).unwrap(),
+                0
+            ),
             1.
         );
 
         // A time close enough to the end of full brightness will round to full brightness
         assert_eq!(
-            time_based_brightness_for_time(
-                &(*MAX_LUX_END_TIME + chrono::Duration::milliseconds(1))
-            )
-            .unwrap(),
+            round(
+                time_based_brightness_for_time(
+                    &(*MAX_LUX_END_TIME + chrono::Duration::milliseconds(1))
+                )
+                .unwrap(),
+                0
+            ),
             1.,
         );
 
@@ -239,14 +261,20 @@ mod tests {
             *MAX_LUX_END_TIME + (*MIN_LUX_START_TIME - *MAX_LUX_END_TIME) / 4;
 
         assert_eq!(
-            time_based_brightness_for_time(&quarter_bright_to_dark).unwrap(),
+            round(
+                time_based_brightness_for_time(&quarter_bright_to_dark).unwrap(),
+                2
+            ),
             0.75,
         );
 
         let mid_bright_to_dark = *MAX_LUX_END_TIME + (*MIN_LUX_START_TIME - *MAX_LUX_END_TIME) / 2;
 
         assert_eq!(
-            time_based_brightness_for_time(&mid_bright_to_dark).unwrap(),
+            round(
+                time_based_brightness_for_time(&mid_bright_to_dark).unwrap(),
+                1
+            ),
             0.5,
         );
 
@@ -254,88 +282,123 @@ mod tests {
             *MAX_LUX_END_TIME + ((*MIN_LUX_START_TIME - *MAX_LUX_END_TIME) * 3) / 4;
 
         assert_eq!(
-            time_based_brightness_for_time(&three_quarter_bright_to_dark).unwrap(),
+            round(
+                time_based_brightness_for_time(&three_quarter_bright_to_dark).unwrap(),
+                2
+            ),
             0.25,
         );
 
         // A time close enough to the start of full darkness will round to full darkness
         assert_eq!(
-            time_based_brightness_for_time(
-                &(*MIN_LUX_START_TIME - chrono::Duration::milliseconds(1))
-            )
-            .unwrap(),
+            round(
+                time_based_brightness_for_time(
+                    &(*MIN_LUX_START_TIME - chrono::Duration::milliseconds(1))
+                )
+                .unwrap(),
+                0
+            ),
             0.,
         );
 
         // Full Darkness
 
         assert_eq!(
-            time_based_brightness_for_time(&(*MIN_LUX_START_TIME)).unwrap(),
+            round(
+                time_based_brightness_for_time(&(*MIN_LUX_START_TIME)).unwrap(),
+                0
+            ),
             0.
         );
 
         assert_eq!(
-            time_based_brightness_for_time(
-                &(*MIN_LUX_START_TIME + chrono::Duration::nanoseconds(1))
-            )
-            .unwrap(),
-            0.
-        );
-
-        assert_eq!(
-            time_based_brightness_for_time(&(*MIN_LUX_END_TIME - chrono::Duration::nanoseconds(1)))
+            round(
+                time_based_brightness_for_time(
+                    &(*MIN_LUX_START_TIME + chrono::Duration::nanoseconds(1))
+                )
                 .unwrap(),
+                0
+            ),
+            0.
+        );
+
+        assert_eq!(
+            round(
+                time_based_brightness_for_time(
+                    &(*MIN_LUX_END_TIME - chrono::Duration::nanoseconds(1))
+                )
+                .unwrap(),
+                0
+            ),
             0.
         );
 
         // Midnight bounds for full darkness
 
         assert_eq!(
-            time_based_brightness_for_time(&(NaiveTime::from_num_seconds_from_midnight(0, 0)))
+            round(
+                time_based_brightness_for_time(&(NaiveTime::from_num_seconds_from_midnight(0, 0)))
+                    .unwrap(),
+                0
+            ),
+            0.
+        );
+
+        assert_eq!(
+            round(
+                time_based_brightness_for_time(
+                    &(NaiveTime::from_num_seconds_from_midnight(0, 0)
+                        - chrono::Duration::nanoseconds(1))
+                )
                 .unwrap(),
+                0
+            ),
             0.
         );
 
         assert_eq!(
-            time_based_brightness_for_time(
-                &(NaiveTime::from_num_seconds_from_midnight(0, 0)
-                    - chrono::Duration::nanoseconds(1))
-            )
-            .unwrap(),
+            round(
+                time_based_brightness_for_time(
+                    &(NaiveTime::from_num_seconds_from_midnight(0, 0)
+                        - chrono::Duration::nanoseconds(2))
+                )
+                .unwrap(),
+                0
+            ),
             0.
         );
 
         assert_eq!(
-            time_based_brightness_for_time(
-                &(NaiveTime::from_num_seconds_from_midnight(0, 0)
-                    - chrono::Duration::nanoseconds(2))
-            )
-            .unwrap(),
-            0.
-        );
-
-        assert_eq!(
-            time_based_brightness_for_time(
-                &(NaiveTime::from_num_seconds_from_midnight(0, 0)
-                    + chrono::Duration::nanoseconds(1))
-            )
-            .unwrap(),
+            round(
+                time_based_brightness_for_time(
+                    &(NaiveTime::from_num_seconds_from_midnight(0, 0)
+                        + chrono::Duration::nanoseconds(1))
+                )
+                .unwrap(),
+                0
+            ),
             0.
         );
 
         // Scaling from darkness to brightness
 
         assert_eq!(
-            time_based_brightness_for_time(&(*MIN_LUX_END_TIME)).unwrap(),
+            round(
+                time_based_brightness_for_time(&(*MIN_LUX_END_TIME)).unwrap(),
+                0
+            ),
             0.
         );
 
         // A time close enough to the end of full darkness will round to full darkness
         assert_eq!(
-            time_based_brightness_for_time(
-                &(*MIN_LUX_END_TIME + chrono::Duration::milliseconds(1))
-            )
-            .unwrap(),
+            round(
+                time_based_brightness_for_time(
+                    &(*MIN_LUX_END_TIME + chrono::Duration::milliseconds(1))
+                )
+                .unwrap(),
+                0
+            ),
             0.,
         );
 
@@ -343,14 +406,20 @@ mod tests {
             *MIN_LUX_END_TIME + (*MAX_LUX_START_TIME - *MIN_LUX_END_TIME) / 4;
 
         assert_eq!(
-            time_based_brightness_for_time(&quarter_dark_to_bright).unwrap(),
+            round(
+                time_based_brightness_for_time(&quarter_dark_to_bright).unwrap(),
+                2
+            ),
             0.25,
         );
 
         let mid_dark_to_bright = *MIN_LUX_END_TIME + (*MAX_LUX_START_TIME - *MIN_LUX_END_TIME) / 2;
 
         assert_eq!(
-            time_based_brightness_for_time(&mid_dark_to_bright).unwrap(),
+            round(
+                time_based_brightness_for_time(&mid_dark_to_bright).unwrap(),
+                1
+            ),
             0.5,
         );
 
@@ -358,16 +427,22 @@ mod tests {
             *MIN_LUX_END_TIME + ((*MAX_LUX_START_TIME - *MIN_LUX_END_TIME) * 3) / 4;
 
         assert_eq!(
-            time_based_brightness_for_time(&three_quarter_dark_to_bright).unwrap(),
+            round(
+                time_based_brightness_for_time(&three_quarter_dark_to_bright).unwrap(),
+                2
+            ),
             0.75,
         );
 
         // A time close enough to the start of full brightness will round to full darkness
         assert_eq!(
-            time_based_brightness_for_time(
-                &(*MAX_LUX_START_TIME - chrono::Duration::milliseconds(1))
-            )
-            .unwrap(),
+            round(
+                time_based_brightness_for_time(
+                    &(*MAX_LUX_START_TIME - chrono::Duration::milliseconds(1))
+                )
+                .unwrap(),
+                0
+            ),
             1.,
         );
     }
