@@ -334,55 +334,23 @@ impl<'a, T: LightSensor> Display for LCD16x2Display<'a, T> {
         time: &DateTime<Local>,
         weather: &Option<OpenWeather>,
     ) -> Result<(), Error> {
-        let first_row = match weather {
-            Some(w) => {
-                format!(
-                    "{:02}:{:02} {:>10}",
-                    time.hour(),
-                    time.minute(),
-                    truncate_to_characters(&w.weather[0].main, 7)
-                )
-            }
-            None => {
-                format!("{:02}:{:02} {:>10}", time.hour(), time.minute(), "WEATHER",)
-            }
-        };
+        let (weather_desc, temp_str) = console_weather_and_temp_str(&weather, 3, 14);
+
+        // time is always 5 chars, date is always 10 chars
+        let first_row = format!("{} {:>14}", console_time_str(&time), weather_desc);
+        let second_row = format!("{} {:>9}", console_date_str(&time), temp_str);
 
         // Move to beginning of first row.
         self.lcd.reset(&mut Delay)?;
 
-        self.lcd.write_str(&first_row, &mut Delay)?;
+        self.lcd
+            .write_bytes(&str_to_lcd_bytes(&first_row), &mut Delay)?;
 
         // Move to line 2
-        self.lcd.set_cursor_pos(40, &mut Delay)?;
+        self.lcd.set_cursor_pos(0x40, &mut Delay)?;
 
-        let day = &time.weekday().to_string()[0..3];
-        let month = &mmm_from_time(time);
-
-        // temperature is right-aligned with three characters max (including sign).
-        // If the temperature is less than -99° or > 999° we have other problems.
-        // The X is replaced later with a degree symbol to ensure it is represented as one byte rather than multi-byte (which is what rust will do by default).
-        // TODO: can we use b'º' ?
-        let second_row_as_bytes = match weather {
-            Some(w) => {
-                let second_row = format!(
-                    "{} {} {:<2} {:>3}X{}",
-                    day,
-                    month,
-                    time.day(),
-                    &w.main.temp.round(),
-                    UNIT_CHAR,
-                );
-                let mut second_row_as_bytes = second_row.as_bytes().to_vec();
-                second_row_as_bytes[14] = 0xDF;
-                second_row_as_bytes
-            }
-            None => format!("{} {} {:<2}   ERR", day, month, time.day())
-                .as_bytes()
-                .to_vec(),
-        };
-
-        self.lcd.write_bytes(&second_row_as_bytes, &mut Delay)?;
+        self.lcd
+            .write_bytes(&str_to_lcd_bytes(&second_row), &mut Delay)?;
 
         let brightness = self.light_sensor.read_light_normalized()?;
         let min_brightness = 0.01;
@@ -497,55 +465,37 @@ impl<'a, T: LightSensor> Display for LCD20x4Display<'a, T> {
         time: &DateTime<Local>,
         weather: &Option<OpenWeather>,
     ) -> Result<(), Error> {
-        let first_row = match weather {
-            Some(w) => {
-                format!(
-                    "{:02}:{:02} {:>10}",
-                    time.hour(),
-                    time.minute(),
-                    truncate_to_characters(&w.weather[0].main, 7)
-                )
-            }
-            None => {
-                format!("{:02}:{:02} {:>10}", time.hour(), time.minute(), "WEATHER",)
-            }
-        };
+        let (weather_desc, temp_str) = console_weather_and_temp_str(&weather, 3, 14);
+
+        // time is always 5 chars, date is always 10 chars
+        let first_row = format!("{} {:>14}", console_time_str(&time), weather_desc);
+        let second_row = format!("{} {:>9}", console_date_str(&time), temp_str);
+        let third_row = "";
+        let fourth_row = "No rain all day";
 
         // Move to beginning of first row.
         self.lcd.reset(&mut Delay)?;
 
-        self.lcd.write_str(&first_row, &mut Delay)?;
+        self.lcd
+            .write_bytes(&str_to_lcd_bytes(&first_row), &mut Delay)?;
 
         // Move to line 2
-        self.lcd.set_cursor_pos(40, &mut Delay)?;
+        self.lcd.set_cursor_pos(0x40, &mut Delay)?;
 
-        let day = &time.weekday().to_string()[0..3];
-        let month = &mmm_from_time(time);
+        self.lcd
+            .write_bytes(&str_to_lcd_bytes(&second_row), &mut Delay)?;
 
-        // temperature is right-aligned with three characters max (including sign).
-        // If the temperature is less than -99° or > 999° we have other problems.
-        // The X is replaced later with a degree symbol to ensure it is represented as one byte rather than multi-byte (which is what rust will do by default).
-        // TODO: can we use b'º' ?
-        let second_row_as_bytes = match weather {
-            Some(w) => {
-                let second_row = format!(
-                    "{} {} {:<2} {:>3}X{}",
-                    day,
-                    month,
-                    time.day(),
-                    &w.main.temp.round(),
-                    UNIT_CHAR,
-                );
-                let mut second_row_as_bytes = second_row.as_bytes().to_vec();
-                second_row_as_bytes[14] = 0xDF;
-                second_row_as_bytes
-            }
-            None => format!("{} {} {:<2}   ERR", day, month, time.day())
-                .as_bytes()
-                .to_vec(),
-        };
+        // Move to line 3
+        self.lcd.set_cursor_pos(0x14, &mut Delay)?;
 
-        self.lcd.write_bytes(&second_row_as_bytes, &mut Delay)?;
+        self.lcd
+            .write_bytes(&str_to_lcd_bytes(&third_row), &mut Delay)?;
+
+        // Move to line 4
+        self.lcd.set_cursor_pos(0x54, &mut Delay)?;
+
+        self.lcd
+            .write_bytes(&str_to_lcd_bytes(&fourth_row), &mut Delay)?;
 
         let brightness = self.light_sensor.read_light_normalized()?;
         let min_brightness = 0.01;
@@ -555,6 +505,14 @@ impl<'a, T: LightSensor> Display for LCD20x4Display<'a, T> {
 
         Ok(())
     }
+}
+
+fn str_to_lcd_bytes(s: &str) -> Vec<u8> {
+    s.replace("°", "#") // Pick a character that we know won't appear in the string elsewhere
+        .as_bytes()
+        .iter()
+        .map(|&i| if i == '#' as u8 { 0xDF } else { i }) // 0xDF is the bytecode for the ° symbol
+        .collect::<Vec<u8>>()
 }
 
 #[cfg(target_arch = "arm")]
