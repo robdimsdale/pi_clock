@@ -687,12 +687,27 @@ fn split_time(t: &DateTime<Local>) -> Result<[u8; 4], Error> {
     Ok([d1, d2, d3, d4])
 }
 
+// Round the temperature to a whole number and pad with spaces where possible.
+// Panics if the input is >= 1000 or <= -100 (i.e. more than three characters are needed)
+//
 // If the temperature can be represented with two digits (i.e. 0<=t<=99)
 // then leave a gap between the digits and the temperature char
-// If the temperature needs three digits (or the negative sign) then skip the gap
+// If the temperature needs three digits (or two digits and the negative sign) then skip the gap
 // If the temperature is 1 digit then leave a gap either side
 // If the temperature is negative 1 digit then add a negative sign before and a gap after
+//
+// Examples:
+//  46.0 -> '46 °F'
+// 123.0 -> '123°F'
+// 123.4 -> '123°F'
+// 275.4 -> '275°F'
+//   1.4 -> ' 1 °F'
+//  -1.4 -> '-1 °F'
+// -12.4 -> '-12°F'
 fn split_temperature(temp: f32) -> Result<[char; 3], Error> {
+    assert!(temp < 1000.0, "temperature too high");
+    assert!(temp > -100.0, "temperature too low");
+
     let is_negative = temp < 0.;
     let zero_char_as_u8 = 48;
 
@@ -752,8 +767,19 @@ mod tests {
         assert_eq!(split_temperature(1.4)?, [' ', '1', ' ']);
         assert_eq!(split_temperature(-1.4)?, ['-', '1', ' ']);
         assert_eq!(split_temperature(-12.4)?, ['-', '1', '2']);
-        // assert_eq!(split_temperature(-123.4), ['-', '1', '2']); // TODO: should panic
         Ok(())
+    }
+
+    #[test]
+    #[should_panic(expected = "temperature too high")]
+    fn test_split_temperature_too_high_panics() {
+        split_temperature(1000.0).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "temperature too low")]
+    fn test_split_temperature_too_low_panics() {
+        split_temperature(-100.0).unwrap();
     }
 
     #[test]
