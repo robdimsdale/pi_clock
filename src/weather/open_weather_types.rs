@@ -2,14 +2,56 @@ use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Default)]
 #[serde(default)]
-pub struct Coord {
+pub struct OpenWeather {
     pub lat: f32,
     pub lon: f32,
+    pub timezone: String,
+    pub timezone_offset: f32,
+    pub current: Current,
+    pub minutely: Vec<Minutely>,
+    pub hourly: Vec<Hourly>,
+    pub daily: Vec<Daily>,
 }
 
 #[derive(Deserialize, Debug, Default)]
 #[serde(default)]
-pub struct Description {
+pub struct Current {
+    pub dt: i64,
+    pub sunrise: i64,
+    pub sunset: i64,
+    pub temp: f32,
+    pub feels_like: f32,
+    pub pressure: f32,
+    pub humidity: f32,
+    pub dew_point: f32,
+    pub uvi: f32,
+    pub clouds: i32,
+    pub visibility: i32,
+    pub wind_speed: f32,
+    pub wind_deg: f32,
+    pub wind_gust: f32,
+    pub rain: Rain,
+    pub snow: Snow,
+    pub weather: Vec<Weather>,
+}
+
+#[derive(Deserialize, Debug, Default)]
+#[serde(default)]
+pub struct Rain {
+    #[serde(rename = "1h")]
+    pub one_hour: f32,
+}
+
+#[derive(Deserialize, Debug, Default)]
+#[serde(default)]
+pub struct Snow {
+    #[serde(rename = "1h")]
+    pub one_hour: f32,
+}
+
+#[derive(Deserialize, Debug, Default)]
+#[serde(default)]
+pub struct Weather {
     pub id: i32,
     pub main: String,
     pub description: String,
@@ -18,66 +60,73 @@ pub struct Description {
 
 #[derive(Deserialize, Debug, Default)]
 #[serde(default)]
-pub struct Main {
+pub struct Minutely {
+    pub dt: i64,
+    pub precipitation: f32,
+}
+
+#[derive(Deserialize, Debug, Default)]
+#[serde(default)]
+pub struct Hourly {
+    pub dt: i64,
     pub temp: f32,
     pub feels_like: f32,
-    pub temp_min: f32,
-    pub temp_max: f32,
     pub pressure: f32,
     pub humidity: f32,
-    pub sea_level: f32,
-    pub grnd_level: f32,
+    pub dew_point: f32,
+    pub uvi: f32,
+    pub clouds: i32,
+    pub visibility: i32,
+    pub wind_speed: f32,
+    pub wind_deg: f32,
+    pub wind_gust: f32,
+    pub pop: f32,
+    pub rain: Rain,
+    pub snow: Snow,
+    pub weather: Vec<Weather>,
 }
 
 #[derive(Deserialize, Debug, Default)]
 #[serde(default)]
-pub struct Wind {
-    pub speed: f32,
-    pub deg: f32,
-    pub gust: f32,
-}
-
-#[derive(Deserialize, Debug, Default)]
-#[serde(default)]
-pub struct Precipitation {
-    #[serde(rename = "1h")]
-    pub one_hour: f32,
-    #[serde(rename = "3h")]
-    pub three_hour: f32,
-}
-
-#[derive(Deserialize, Debug, Default)]
-#[serde(default)]
-pub struct Clouds {
-    pub all: i32,
-}
-
-#[derive(Deserialize, Debug, Default)]
-#[serde(default)]
-pub struct Sys {
-    pub r#type: i32,
-    pub id: i32,
-    pub country: String,
+pub struct Daily {
+    pub dt: i64,
     pub sunrise: i64,
     pub sunset: i64,
+    pub moonrise: i64,
+    pub moonset: i64,
+    pub moonphase: f32,
+    pub temp: Temp,
+    pub feels_like: FeelsLike,
+    pub pressure: f32,
+    pub humidity: f32,
+    pub dew_point: f32,
+    pub uvi: f32,
+    pub pop: f32,
+    pub clouds: i32,
+    pub wind_speed: f32,
+    pub wind_deg: f32,
+    pub wind_gust: f32,
+    pub rain: f32,
+    pub snow: f32,
+    pub weather: Vec<Weather>,
 }
 
 #[derive(Deserialize, Debug, Default)]
 #[serde(default)]
-pub struct OpenWeather {
-    pub coord: Coord,
-    pub weather: Vec<Description>,
-    pub base: String,
-    pub main: Main,
-    pub visibility: f32,
-    pub wind: Wind,
-    pub rain: Precipitation,
-    pub snow: Precipitation,
-    pub clouds: Clouds,
-    pub dt: i64,
-    pub sys: Sys,
-    pub timezone: f32,
-    pub id: i32,
-    pub name: String,
-    pub cod: i32,
+pub struct Temp {
+    pub morn: f32,
+    pub day: f32,
+    pub eve: f32,
+    pub night: f32,
+    pub min: f32,
+    pub max: f32,
+}
+
+#[derive(Deserialize, Debug, Default)]
+#[serde(default)]
+pub struct FeelsLike {
+    pub morn: f32,
+    pub day: f32,
+    pub eve: f32,
+    pub night: f32,
 }

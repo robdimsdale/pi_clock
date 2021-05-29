@@ -157,12 +157,12 @@ fn console_weather_and_temp_str(
         Some(w) => (
             format!(
                 "{:>width$}",
-                truncate_to_characters(&w.weather[0].main, weather_chars),
+                truncate_to_characters(&w.current.weather[0].main, weather_chars),
                 width = weather_chars
             ),
             format!(
                 "{:>width$}°{}",
-                w.main.temp.round(),
+                w.current.temp.round(),
                 UNIT_CHAR,
                 width = temp_digits
             ),
@@ -594,8 +594,8 @@ impl<'a, T: LightSensor> Display for ILI9341Display<'a, T> {
         let second_row = format!("{} {} {:<2}", day, month, time.day());
         let (third_row, fourth_row) = match weather {
             Some(w) => (
-                format!("{}", truncate_to_characters(&w.weather[0].main, 7)),
-                format!("{:>3}°{}", &w.main.temp.round(), UNIT_CHAR),
+                format!("{}", truncate_to_characters(&w.current.weather[0].main, 7)),
+                format!("{:>3}°{}", &w.current.temp.round(), UNIT_CHAR),
             ),
             None => ("WEATHER".to_owned(), "ERR".to_owned()),
         };
@@ -682,7 +682,7 @@ impl<'a, T: LightSensor> Display for AlphaNum4Display<'a, T> {
     fn print(&mut self, _: &DateTime<Local>, weather: &Option<OpenWeather>) -> Result<(), Error> {
         let [d1, d2, d3] = match weather {
             Some(w) => {
-                let chars = format!("{:>3}", w.main.temp.round())
+                let chars = format!("{:>3}", w.current.temp.round())
                     .chars()
                     .collect::<Vec<char>>();
                 [chars[0], chars[1], chars[2]]
