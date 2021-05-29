@@ -2,7 +2,9 @@ use log::{debug, info};
 use simplelog::{ConfigBuilder, LevelFilter, TermLogger, TerminalMode};
 use structopt::StructOpt;
 
-const CONSOLE_DISPLAY_TYPE: &'static str = "console";
+const CONSOLE_16X2_DISPLAY_TYPE: &'static str = "console-16x2";
+const CONSOLE_20X4_DISPLAY_TYPE: &'static str = "console-20x4";
+
 #[cfg(target_arch = "arm")]
 const HD44780_DISPLAY_TYPE: &'static str = "hd44780";
 #[cfg(target_arch = "arm")]
@@ -48,8 +50,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .iter()
         .map(|d| -> Result<pi_clock::DisplayType<_>, pi_clock::Error> {
             match d.as_str() {
-                CONSOLE_DISPLAY_TYPE => Ok(pi_clock::DisplayType::Console(
-                    pi_clock::ConsoleDisplay::new(&light_sensor),
+                CONSOLE_16X2_DISPLAY_TYPE => Ok(pi_clock::DisplayType::Console16x2(
+                    pi_clock::Console16x2Display::new(&light_sensor),
+                )),
+
+                CONSOLE_20X4_DISPLAY_TYPE => Ok(pi_clock::DisplayType::Console20x4(
+                    pi_clock::Console20x4Display::new(&light_sensor),
                 )),
 
                 #[cfg(target_arch = "arm")]
@@ -94,6 +100,6 @@ struct Cli {
     #[structopt(long, default_value=RANDOM_LIGHT_SENSOR_TYPE)]
     light_sensor_type: String,
 
-    #[structopt(long = "display-type", default_value=CONSOLE_DISPLAY_TYPE)]
+    #[structopt(long = "display-type", default_value=CONSOLE_16X2_DISPLAY_TYPE)]
     display_types: Vec<String>,
 }

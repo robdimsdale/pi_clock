@@ -37,7 +37,8 @@ const UNIT_CHAR: char = 'F';
 
 // To enable heterogenous abstractions over multiple display types
 pub enum DisplayType<'a, T: LightSensor> {
-    Console(ConsoleDisplay<'a, T>),
+    Console16x2(Console16x2Display<'a, T>),
+    Console20x4(Console20x4Display<'a, T>),
 
     #[cfg(target_arch = "arm")]
     HD44780(HD44780Display<'a, T>),
@@ -61,7 +62,8 @@ impl<'a, T: LightSensor> DisplayType<'a, T> {
         weather: &Option<OpenWeather>,
     ) -> Result<(), Error> {
         match &mut *self {
-            Self::Console(display) => display.print(time, weather),
+            Self::Console16x2(display) => display.print(time, weather),
+            Self::Console20x4(display) => display.print(time, weather),
 
             #[cfg(target_arch = "arm")]
             Self::HD44780(display) => display.print(time, weather),
@@ -90,19 +92,86 @@ pub trait Display {
         -> Result<(), Error>;
 }
 
-pub struct ConsoleDisplay<'a, T: LightSensor> {
+pub struct Console16x2Display<'a, T: LightSensor> {
     light_sensor: &'a T,
 }
 
-impl<'a, T: LightSensor> ConsoleDisplay<'a, T> {
-    pub fn new(light_sensor: &'a T) -> ConsoleDisplay<'a, T> {
-        ConsoleDisplay {
+impl<'a, T: LightSensor> Console16x2Display<'a, T> {
+    pub fn new(light_sensor: &'a T) -> Console16x2Display<'a, T> {
+        Console16x2Display {
             light_sensor: light_sensor,
         }
     }
 }
 
-impl<'a, T: LightSensor> Display for ConsoleDisplay<'a, T> {
+impl<'a, T: LightSensor> Display for Console16x2Display<'a, T> {
+    fn print(
+        &mut self,
+        time: &DateTime<Local>,
+        weather: &Option<OpenWeather>,
+    ) -> Result<(), Error> {
+        let first_row = match weather {
+            Some(w) => {
+                format!(
+                    "{:02}:{:02} {:>10}",
+                    time.hour(),
+                    time.minute(),
+                    truncate_to_characters(&w.weather[0].main, 7)
+                )
+            }
+            None => {
+                format!("{:02}:{:02} {:>10}", time.hour(), time.minute(), "WEATHER")
+            }
+        };
+
+        let day = &time.weekday().to_string()[0..3];
+        let month = &mmm_from_time(time);
+
+        // temperature is right-aligned with three characters max (including sign).
+        // If the temperature is less than -99° or > 999° we have other problems.
+        let second_row = match weather {
+            Some(w) => {
+                format!(
+                    "{} {} {:<2} {:>3}°{}",
+                    day,
+                    month,
+                    time.day(),
+                    &w.main.temp.round(),
+                    UNIT_CHAR,
+                )
+            }
+            None => {
+                format!("{} {} {:<2}   ERR", day, month, time.day())
+            }
+        };
+        println!();
+        println!("-{}-", std::iter::repeat("-").take(16).collect::<String>());
+        println!("|{}|", first_row);
+        println!("|{}|", second_row);
+        println!("-{}-", std::iter::repeat("-").take(16).collect::<String>());
+
+        println!(
+            "Current light: {}",
+            self.light_sensor.read_light_normalized()?
+        );
+
+        Ok(())
+    }
+}
+
+pub struct Console20x4Display<'a, T: LightSensor> {
+    light_sensor: &'a T,
+}
+
+impl<'a, T: LightSensor> Console20x4Display<'a, T> {
+    pub fn new(light_sensor: &'a T) -> Console20x4Display<'a, T> {
+        Console20x4Display {
+            light_sensor: light_sensor,
+        }
+    }
+}
+
+impl<'a, T: LightSensor> Display for Console20x4Display<'a, T> {
     fn print(
         &mut self,
         time: &DateTime<Local>,
