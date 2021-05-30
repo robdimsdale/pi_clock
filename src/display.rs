@@ -1,7 +1,7 @@
 mod error;
 
 use crate::light::LightSensor;
-use crate::weather::OpenWeather;
+use crate::weather::{currently_raining, next_rain_start_or_stop, OpenWeather};
 pub use error::Error;
 
 use chrono::{DateTime, Datelike, Local, Month, Timelike};
@@ -198,14 +198,9 @@ impl<'a, T: LightSensor> Display for Console20x4Display<'a, T> {
         let first_row = format!("{} {:>14}", console_time_str(&time), weather_desc);
         let second_row = format!("{} {:>9}", console_date_str(&time), temp_str);
 
-        //       let first_row = format!("{} {}", console_time_str(&time), console_date_str(&time));
-        //let second_row = format!("{}  {:>10}", temp_str, weather_desc);
-        //        let second_row = format!("{:<10} {}", weather_desc, temp_str);
-
-        // let third_row = format!("{:<20}", "No rain all day");
         let third_row = format!("{:<20}", "");
-        let fourth_row = format!("{:<20}", "No rain all day");
-        //let fourth_row = format!("{:<20}", "High: 103°F at 14:30");
+        let fourth_row = format!("{:<20}", rain_forecast_str(&weather));
+        // let fourth_row = format!("{:<20}", "High: 103°F at 14:30");
 
         println!();
         println!("-{}-", std::iter::repeat("-").take(20).collect::<String>());
@@ -221,6 +216,28 @@ impl<'a, T: LightSensor> Display for Console20x4Display<'a, T> {
         );
 
         Ok(())
+    }
+}
+
+fn rain_forecast_str(weather: &Option<OpenWeather>) -> String {
+    match weather {
+        Some(w) => match next_rain_start_or_stop(&w) {
+            Some(ts) => {
+                if currently_raining(&w) {
+                    format!("Rain stops at {:02}:00", ts.hour())
+                } else {
+                    format!("Rain starts at {:02}:00", ts.hour())
+                }
+            }
+            None => {
+                if currently_raining(&w) {
+                    "Rain for next 24h".to_string()
+                } else {
+                    "No rain for next 24h".to_string()
+                }
+            }
+        },
+        None => "".to_string(),
     }
 }
 
@@ -471,7 +488,7 @@ impl<'a, T: LightSensor> Display for LCD20x4Display<'a, T> {
         let first_row = format!("{} {:>14}", console_time_str(&time), weather_desc);
         let second_row = format!("{} {:>9}", console_date_str(&time), temp_str);
         let third_row = "";
-        let fourth_row = "No rain all day";
+        let fourth_row = rain_forecast_str(&weather);
 
         // Move to beginning of first row.
         self.lcd.reset(&mut Delay)?;
