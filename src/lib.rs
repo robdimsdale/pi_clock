@@ -82,6 +82,8 @@ pub fn run<T: LightSensor>(
     state_duration_secs: u32,
     display: &mut display::DisplayType<T>,
 ) -> Result<(), Error> {
+    let state_machine = StateMachine::new(STATE_COUNT, state_duration_secs);
+
     let mut last_weather_attempt = time::Instant::now();
     let mut last_weather_success = time::Instant::now();
 
@@ -127,34 +129,42 @@ pub fn run<T: LightSensor>(
                 "no successful weather in over {}s. Displaying empty weather",
                 NO_WEATHER_ERROR_DURATION_SECONDS
             );
-            display.print(&Local::now(), current_state(state_duration_secs), &None)?;
+            display.print(&Local::now(), state_machine.current_state(), &None)?;
         } else {
-            display.print(&Local::now(), current_state(state_duration_secs), &weather)?;
+            display.print(&Local::now(), state_machine.current_state(), &weather)?;
         }
 
         thread::sleep(time::Duration::from_millis(sleep_duration_millis));
     }
 }
 
-// TODO: Make this an object with a current_state method on it.
-// Or at the minimum, at least memoize it, so we don't have to pass state_duration_secs around
-// every time we want to get the current state.
-// We should not be building the map on every iteration.
-fn state_map(state_duration_secs: u32) -> HashMap<u32, u32> {
-    let mut state_map = HashMap::new();
+struct StateMachine {
+    state_map: HashMap<u32, u32>,
+    state_count: u32,
+    state_duration_secs: u32,
+}
 
-    let mut current_build_state = 0;
-    for i in 0..state_duration_secs * STATE_COUNT {
-        state_map.insert(i, current_build_state);
-        if (i + 1) % state_duration_secs == 0 {
-            current_build_state += 1;
+impl StateMachine {
+    fn new(state_count: u32, state_duration_secs: u32) -> Self {
+        let mut map = HashMap::new();
+
+        let mut current_build_state = 0;
+        for i in 0..state_duration_secs * state_count {
+            map.insert(i, current_build_state);
+            if (i + 1) % state_duration_secs == 0 {
+                current_build_state += 1;
+            }
+        }
+
+        StateMachine {
+            state_map: map,
+            state_duration_secs: state_duration_secs,
+            state_count: state_count,
         }
     }
 
-    state_map
-}
-
-fn current_state(state_duration_secs: u32) -> u32 {
-    let second_mod = Local::now().second() % (state_duration_secs * STATE_COUNT);
-    *state_map(state_duration_secs).get(&second_mod).unwrap()
+    fn current_state(self: &Self) -> u32 {
+        let second_mod = Local::now().second() % (self.state_duration_secs * self.state_count);
+        *self.state_map.get(&second_mod).unwrap()
+    }
 }
