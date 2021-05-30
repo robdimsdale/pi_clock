@@ -835,7 +835,7 @@ impl<'a, T: LightSensor> Display for SevenSegment4Display<'a, T> {
         _: u32,
         _: &Option<OpenWeather>,
     ) -> Result<(), Error> {
-        let [d1, d2, d3, d4] = split_time(time)?;
+        let [d1, d2, d3, d4] = split_time(time);
         adafruit_7segment::SevenSegment::update_buffer_with_digit(
             &mut self.ht16k33,
             adafruit_7segment::Index::One,
