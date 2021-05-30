@@ -89,7 +89,7 @@ pub fn next_rain_start_or_stop(w: &OpenWeather) -> Option<DateTime<Local>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::weather::open_weather_types::{Hourly, Weather};
+    use crate::weather::open_weather_types::{Weather};
 
     #[test]
     fn test_next_rain_start() {
