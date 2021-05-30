@@ -30,6 +30,35 @@ pub fn currently_raining(w: &OpenWeather) -> bool {
     w.current.weather[0].main == "Rain"
 }
 
+pub fn high_low_temp(w: &OpenWeather) -> ((DateTime<Local>, f32), (DateTime<Local>, f32)) {
+    let mut high = &w.hourly[0];
+    let mut low = &w.hourly[0];
+
+    for h in w.hourly.iter() {
+        let ts = Local.timestamp(h.dt, 0);
+        if timestamp_before_now(&ts) {
+            continue;
+        }
+
+        if timestamp_after_24_hours(&ts) {
+            continue;
+        }
+
+        if h.temp > high.temp {
+            high = h
+        }
+
+        if h.temp < low.temp {
+            low = h
+        }
+    }
+
+    return (
+        (Local.timestamp(high.dt, 0), high.temp),
+        (Local.timestamp(low.dt, 0), low.temp),
+    );
+}
+
 // Returns the next time that the rain is forecast to
 // start (if it is not currently raining)
 // or stop (if it is currently raining)

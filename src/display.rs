@@ -1,7 +1,7 @@
 mod error;
 
 use crate::light::LightSensor;
-use crate::weather::{currently_raining, next_rain_start_or_stop, OpenWeather};
+use crate::weather::{currently_raining, high_low_temp, next_rain_start_or_stop, OpenWeather};
 pub use error::Error;
 
 use chrono::{DateTime, Datelike, Local, Month, Timelike};
@@ -201,6 +201,8 @@ impl<'a, T: LightSensor> Display for Console20x4Display<'a, T> {
     ) -> Result<(), Error> {
         let (weather_desc, temp_str) = console_weather_and_temp_str(&weather, 3, 14);
 
+        let (high_temp_str, low_temp_str) = high_low_strs(&weather);
+
         // time is always 5 chars, date is always 10 chars
         let first_row = format!("{} {:>14}", console_time_str(&time), weather_desc);
         let second_row = format!("{} {:>9}", console_date_str(&time), temp_str);
@@ -209,8 +211,8 @@ impl<'a, T: LightSensor> Display for Console20x4Display<'a, T> {
 
         let fourth_row = match current_state_index {
             0 => format!("{:<20}", rain_forecast_str(&weather)),
-            1 => format!("{:<20}", "High: 103°F at 14:30"),
-            2 => format!("{:<20}", "Low: 3°F at 23:30"),
+            1 => format!("{:<20}", high_temp_str,),
+            2 => format!("{:<20}", low_temp_str),
             _ => panic!("Invalid state index"),
         };
 
@@ -250,6 +252,23 @@ fn rain_forecast_str(weather: &Option<OpenWeather>) -> String {
             }
         },
         None => "".to_string(),
+    }
+}
+
+fn high_low_strs(weather: &Option<OpenWeather>) -> (String, String) {
+    match weather {
+        Some(w) => {
+            let ((high_time, high_temp), (low_time, low_temp)) = high_low_temp(&w);
+            (
+                format!(
+                    "High: {}°F at {:02}:00",
+                    high_temp.round(),
+                    high_time.hour()
+                ),
+                format!("Low: {}°F at {:02}:00", low_temp.round(), low_time.hour()),
+            )
+        }
+        None => ("".to_string(), "".to_string()),
     }
 }
 
@@ -497,6 +516,7 @@ impl<'a, T: LightSensor> Display for LCD20x4Display<'a, T> {
         weather: &Option<OpenWeather>,
     ) -> Result<(), Error> {
         let (weather_desc, temp_str) = console_weather_and_temp_str(&weather, 3, 14);
+        let (high_temp_str, low_temp_str) = high_low_strs(&weather);
 
         // time is always 5 chars, date is always 10 chars
         let first_row = format!("{} {:>14}", console_time_str(&time), weather_desc);
@@ -505,8 +525,8 @@ impl<'a, T: LightSensor> Display for LCD20x4Display<'a, T> {
 
         let fourth_row = match current_state_index {
             0 => format!("{:<20}", rain_forecast_str(&weather)),
-            1 => format!("{:<20}", "High: 103°F at 14:30"),
-            2 => format!("{:<20}", "Low: 3°F at 23:30"),
+            1 => format!("{:<20}", high_temp_str),
+            2 => format!("{:<20}", low_temp_str),
             _ => panic!("Invalid state index"),
         };
 
