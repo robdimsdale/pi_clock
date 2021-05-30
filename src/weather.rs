@@ -6,11 +6,9 @@ pub use error::Error;
 pub use open_weather_types::OpenWeather;
 use std::time::Duration;
 
-const TIMEOUT_MILLIS: u64 = 500;
-
-pub fn get_weather(uri: &str) -> Result<OpenWeather, Error> {
+pub fn get_weather(uri: &str, timeout_millis: u64) -> Result<OpenWeather, Error> {
     let agent = ureq::builder()
-        .timeout(Duration::from_millis(TIMEOUT_MILLIS))
+        .timeout(Duration::from_millis(timeout_millis))
         .build();
 
     let response = agent.get(&uri).call()?.into_string()?;
@@ -89,7 +87,7 @@ pub fn next_rain_start_or_stop(w: &OpenWeather) -> Option<DateTime<Local>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::weather::open_weather_types::{Weather};
+    use crate::weather::open_weather_types::Weather;
 
     #[test]
     fn test_next_rain_start() {

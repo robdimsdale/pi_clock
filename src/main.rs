@@ -99,6 +99,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &args.uri,
         args.loop_duration_millis,
         args.state_duration_secs,
+        args.weather_request_timeout_millis,
         &mut display,
     )?;
 
@@ -111,6 +112,9 @@ struct Cli {
 
     #[structopt(long, default_value = "500")]
     loop_duration_millis: u64,
+
+    #[structopt(long, default_value = "200")]
+    weather_request_timeout_millis: u64,
 
     #[structopt(long, default_value = "3")]
     state_duration_secs: u32,

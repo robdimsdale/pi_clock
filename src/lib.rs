@@ -80,6 +80,7 @@ pub fn run<T: LightSensor>(
     uri: &str,
     sleep_duration_millis: u64,
     state_duration_secs: u32,
+    weather_request_timeout_millis: u64,
     display: &mut display::DisplayType<T>,
 ) -> Result<(), Error> {
     let state_machine = StateMachine::new(STATE_COUNT, state_duration_secs);
@@ -87,7 +88,7 @@ pub fn run<T: LightSensor>(
     let mut last_weather_attempt = time::Instant::now();
     let mut last_weather_success = time::Instant::now();
 
-    let mut weather = match weather::get_weather(&uri) {
+    let mut weather = match weather::get_weather(&uri, weather_request_timeout_millis) {
         Ok(w) => Some(w),
         Err(e) => {
             warn!("Error getting initial weather: {}", e);
@@ -107,7 +108,7 @@ pub fn run<T: LightSensor>(
                 WEATHER_DURATION_SECONDS,
             );
 
-            match weather::get_weather(&uri) {
+            match weather::get_weather(&uri, weather_request_timeout_millis) {
                 Ok(updated_weather) => {
                     info!("successfully updated weather");
 
