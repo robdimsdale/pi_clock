@@ -95,7 +95,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Initialization complete");
 
-    pi_clock::run(&args.uri, &mut display)?;
+    pi_clock::run(
+        &args.uri,
+        args.loop_duration_millis,
+        args.state_duration_secs,
+        &mut display,
+    )?;
 
     Ok(())
 }
@@ -103,6 +108,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 struct Cli {
     #[structopt(long)]
     uri: String,
+
+    #[structopt(long, default_value = "500")]
+    loop_duration_millis: u64,
+
+    #[structopt(long, default_value = "3")]
+    state_duration_secs: u32,
 
     #[structopt(long, default_value=RANDOM_LIGHT_SENSOR_TYPE)]
     light_sensor_type: String,

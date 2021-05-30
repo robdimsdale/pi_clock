@@ -6,7 +6,6 @@ pub use error::Error;
 
 use chrono::{DateTime, Datelike, Local, Month, Timelike};
 use num_traits::cast::FromPrimitive;
-use std::collections::HashMap;
 
 #[cfg(target_arch = "arm")]
 use embedded_graphics::{
@@ -35,8 +34,6 @@ use rppal::pwm::{Channel, Polarity, Pwm};
 use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
 
 const UNIT_CHAR: char = 'F';
-const STATE_COUNT: u32 = 3;
-const STATE_DURATION_SECS: u32 = 2;
 
 // To enable heterogenous abstractions over multiple display types
 pub enum DisplayType<'a, T: LightSensor> {
@@ -64,29 +61,30 @@ impl<'a, T: LightSensor> DisplayType<'a, T> {
     pub fn print(
         &mut self,
         time: &DateTime<Local>,
+        current_state_index: u32,
         weather: &Option<OpenWeather>,
     ) -> Result<(), Error> {
         match &mut *self {
-            Self::Console16x2(display) => display.print(time, weather),
-            Self::Console20x4(display) => display.print(time, weather),
+            Self::Console16x2(display) => display.print(time, current_state_index, weather),
+            Self::Console20x4(display) => display.print(time, current_state_index, weather),
 
             #[cfg(target_arch = "arm")]
-            Self::LCD16x2(display) => display.print(time, weather),
+            Self::LCD16x2(display) => display.print(time, current_state_index, weather),
             #[cfg(target_arch = "arm")]
-            Self::LCD20x4(display) => display.print(time, weather),
+            Self::LCD20x4(display) => display.print(time, current_state_index, weather),
 
             #[cfg(target_arch = "arm")]
-            Self::ILI9341(display) => display.print(time, weather),
+            Self::ILI9341(display) => display.print(time, current_state_index, weather),
 
             #[cfg(target_arch = "arm")]
-            Self::AlphaNum4(display) => display.print(time, weather),
+            Self::AlphaNum4(display) => display.print(time, current_state_index, weather),
 
             #[cfg(target_arch = "arm")]
-            Self::SevenSegment4(display) => display.print(time, weather),
+            Self::SevenSegment4(display) => display.print(time, current_state_index, weather),
 
             Self::Composite(displays) => {
                 for d in displays.iter_mut() {
-                    d.print(time, weather)?;
+                    d.print(time, current_state_index, weather)?;
                 }
                 Ok(())
             }
@@ -95,8 +93,12 @@ impl<'a, T: LightSensor> DisplayType<'a, T> {
 }
 
 pub trait Display {
-    fn print(&mut self, time: &DateTime<Local>, weather: &Option<OpenWeather>)
-        -> Result<(), Error>;
+    fn print(
+        &mut self,
+        time: &DateTime<Local>,
+        current_state_index: u32,
+        weather: &Option<OpenWeather>,
+    ) -> Result<(), Error>;
 }
 
 pub struct Console16x2Display<'a, T: LightSensor> {
@@ -115,6 +117,7 @@ impl<'a, T: LightSensor> Display for Console16x2Display<'a, T> {
     fn print(
         &mut self,
         time: &DateTime<Local>,
+        _: u32,
         weather: &Option<OpenWeather>,
     ) -> Result<(), Error> {
         let (weather_desc, temp_str) = console_weather_and_temp_str(&weather, 3, 7);
@@ -193,6 +196,7 @@ impl<'a, T: LightSensor> Display for Console20x4Display<'a, T> {
     fn print(
         &mut self,
         time: &DateTime<Local>,
+        current_state_index: u32,
         weather: &Option<OpenWeather>,
     ) -> Result<(), Error> {
         let (weather_desc, temp_str) = console_weather_and_temp_str(&weather, 3, 14);
@@ -203,7 +207,7 @@ impl<'a, T: LightSensor> Display for Console20x4Display<'a, T> {
 
         let third_row = format!("{:<20}", "");
 
-        let fourth_row = match current_state() {
+        let fourth_row = match current_state_index {
             0 => format!("{:<20}", rain_forecast_str(&weather)),
             1 => format!("{:<20}", "High: 103°F at 14:30"),
             2 => format!("{:<20}", "Low: 3°F at 23:30"),
@@ -225,25 +229,6 @@ impl<'a, T: LightSensor> Display for Console20x4Display<'a, T> {
 
         Ok(())
     }
-}
-
-fn state_map() -> HashMap<u32, u32> {
-    let mut state_map = HashMap::new();
-
-    let mut current_build_state = 0;
-    for i in 0..STATE_DURATION_SECS * STATE_COUNT {
-        state_map.insert(i, current_build_state);
-        if (i + 1) % STATE_DURATION_SECS == 0 {
-            current_build_state += 1;
-        }
-    }
-
-    state_map
-}
-
-fn current_state() -> u32 {
-    let second_mod = Local::now().second() % (STATE_DURATION_SECS * STATE_COUNT);
-    *state_map().get(&second_mod).unwrap()
 }
 
 fn rain_forecast_str(weather: &Option<OpenWeather>) -> String {
@@ -376,6 +361,7 @@ impl<'a, T: LightSensor> Display for LCD16x2Display<'a, T> {
     fn print(
         &mut self,
         time: &DateTime<Local>,
+        _: u32,
         weather: &Option<OpenWeather>,
     ) -> Result<(), Error> {
         let (weather_desc, temp_str) = console_weather_and_temp_str(&weather, 3, 14);
@@ -507,6 +493,7 @@ impl<'a, T: LightSensor> Display for LCD20x4Display<'a, T> {
     fn print(
         &mut self,
         time: &DateTime<Local>,
+        current_state_index: u32,
         weather: &Option<OpenWeather>,
     ) -> Result<(), Error> {
         let (weather_desc, temp_str) = console_weather_and_temp_str(&weather, 3, 14);
@@ -516,7 +503,7 @@ impl<'a, T: LightSensor> Display for LCD20x4Display<'a, T> {
         let second_row = format!("{} {:>9}", console_date_str(&time), temp_str);
         let third_row = "";
 
-        let fourth_row = match current_state() {
+        let fourth_row = match current_state_index {
             0 => format!("{:<20}", rain_forecast_str(&weather)),
             1 => format!("{:<20}", "High: 103°F at 14:30"),
             2 => format!("{:<20}", "Low: 3°F at 23:30"),
@@ -634,6 +621,7 @@ impl<'a, T: LightSensor> Display for ILI9341Display<'a, T> {
     fn print(
         &mut self,
         time: &DateTime<Local>,
+        _: u32,
         weather: &Option<OpenWeather>,
     ) -> Result<(), Error> {
         let day = &time.weekday().to_string()[0..3];
@@ -729,7 +717,12 @@ impl<'a, T: LightSensor> AlphaNum4Display<'a, T> {
 
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> Display for AlphaNum4Display<'a, T> {
-    fn print(&mut self, _: &DateTime<Local>, weather: &Option<OpenWeather>) -> Result<(), Error> {
+    fn print(
+        &mut self,
+        _: &DateTime<Local>,
+        _: u32,
+        weather: &Option<OpenWeather>,
+    ) -> Result<(), Error> {
         let [d1, d2, d3] = match weather {
             Some(w) => {
                 let chars = format!("{:>3}", w.current.temp.round())
@@ -816,7 +809,12 @@ impl<'a, T: LightSensor> SevenSegment4Display<'a, T> {
 
 #[cfg(target_arch = "arm")]
 impl<'a, T: LightSensor> Display for SevenSegment4Display<'a, T> {
-    fn print(&mut self, time: &DateTime<Local>, _: &Option<OpenWeather>) -> Result<(), Error> {
+    fn print(
+        &mut self,
+        time: &DateTime<Local>,
+        _: u32,
+        _: &Option<OpenWeather>,
+    ) -> Result<(), Error> {
         let [d1, d2, d3, d4] = split_time(time)?;
         adafruit_7segment::SevenSegment::update_buffer_with_digit(
             &mut self.ht16k33,
