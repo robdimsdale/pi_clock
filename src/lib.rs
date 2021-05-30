@@ -1,8 +1,10 @@
+mod config;
 mod display;
 mod light;
 mod weather;
 
 use chrono::{Local, Timelike};
+pub use config::Config;
 #[cfg(target_arch = "arm")]
 pub use display::{
     AlphaNum4Display, ILI9341Display, LCD16x2Display, LCD20x4Display, SevenSegment4Display,
@@ -74,21 +76,17 @@ impl From<display::Error> for Error {
 }
 
 pub fn run<T: LightSensor>(
-    uri: &str,
-    sleep_duration_millis: u64,
-    state_duration_secs: u32,
-    weather_request_timeout_millis: u64,
-    weather_request_polling_interval_secs: u64,
+    config: &Config,
     display: &mut display::DisplayType<T>,
 ) -> Result<(), Error> {
-    let no_weather_error_duration_secs = 3 * weather_request_polling_interval_secs;
+    let no_weather_error_duration = config.weather_request_polling_interval * 3;
 
-    let state_machine = StateMachine::new(STATE_COUNT, state_duration_secs);
+    let state_machine = StateMachine::new(STATE_COUNT, config.state_duration.as_secs() as u32);
 
     let mut last_weather_attempt = time::Instant::now();
     let mut last_weather_success = time::Instant::now();
 
-    let mut weather = match weather::get_weather(&uri, weather_request_timeout_millis) {
+    let mut weather = match weather::get_weather(&config.uri, config.weather_request_timeout) {
         Ok(w) => Some(w),
         Err(e) => {
             warn!("Error getting initial weather: {}", e);
@@ -100,17 +98,15 @@ pub fn run<T: LightSensor>(
         let now = time::Instant::now();
 
         let duration_since_last_weather = now.duration_since(last_weather_attempt);
-        if duration_since_last_weather
-            > time::Duration::from_secs(weather_request_polling_interval_secs)
-        {
+        if duration_since_last_weather > config.weather_request_polling_interval {
             last_weather_attempt = now;
 
             info!(
                 "Getting updated weather ({}s since last attempt)",
-                weather_request_polling_interval_secs,
+                config.weather_request_polling_interval.as_secs(),
             );
 
-            match weather::get_weather(&uri, weather_request_timeout_millis) {
+            match weather::get_weather(&config.uri, config.weather_request_timeout) {
                 Ok(updated_weather) => {
                     info!("successfully updated weather");
 
@@ -126,17 +122,17 @@ pub fn run<T: LightSensor>(
             };
         }
 
-        if now > last_weather_success + time::Duration::from_secs(no_weather_error_duration_secs) {
+        if now > last_weather_success + no_weather_error_duration {
             warn!(
                 "no successful weather in over {}s. Displaying empty weather",
-                no_weather_error_duration_secs
+                no_weather_error_duration.as_secs()
             );
             display.print(&Local::now(), state_machine.current_state(), &None)?;
         } else {
             display.print(&Local::now(), state_machine.current_state(), &weather)?;
         }
 
-        thread::sleep(time::Duration::from_millis(sleep_duration_millis));
+        thread::sleep(config.loop_sleep_duration);
     }
 }
 

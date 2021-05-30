@@ -1,5 +1,6 @@
 use log::{debug, info};
 use simplelog::{ConfigBuilder, LevelFilter, TermLogger, TerminalMode};
+use std::time::Duration;
 use structopt::StructOpt;
 
 const CONSOLE_16X2_DISPLAY_TYPE: &'static str = "console-16x2";
@@ -95,14 +96,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Initialization complete");
 
-    pi_clock::run(
-        &args.uri,
-        args.loop_duration_millis,
-        args.state_duration_secs,
-        args.weather_request_timeout_millis,
-        args.weather_request_polling_interval_secs,
-        &mut display,
-    )?;
+    let config = pi_clock::Config {
+        uri: args.uri,
+        loop_sleep_duration: Duration::from_millis(args.loop_duration_millis),
+        state_duration: Duration::from_secs(args.state_duration_secs),
+        weather_request_timeout: Duration::from_millis(args.weather_request_timeout_millis),
+        weather_request_polling_interval: Duration::from_secs(
+            args.weather_request_polling_interval_secs,
+        ),
+    };
+
+    pi_clock::run(&config, &mut display)?;
 
     Ok(())
 }
@@ -121,7 +125,7 @@ struct Cli {
     weather_request_timeout_millis: u64,
 
     #[structopt(long, default_value = "3")]
-    state_duration_secs: u32,
+    state_duration_secs: u64,
 
     #[structopt(long, default_value=RANDOM_LIGHT_SENSOR_TYPE)]
     light_sensor_type: String,
