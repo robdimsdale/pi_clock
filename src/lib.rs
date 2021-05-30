@@ -17,9 +17,6 @@ use std::fmt;
 use std::{thread, time};
 pub use weather::OpenWeather;
 
-const WEATHER_DURATION_SECONDS: u64 = 60;
-const NO_WEATHER_ERROR_DURATION_SECONDS: u64 = 3 * WEATHER_DURATION_SECONDS;
-
 const STATE_COUNT: u32 = 3;
 
 #[derive(Debug)]
@@ -81,8 +78,11 @@ pub fn run<T: LightSensor>(
     sleep_duration_millis: u64,
     state_duration_secs: u32,
     weather_request_timeout_millis: u64,
+    weather_request_polling_interval_secs: u64,
     display: &mut display::DisplayType<T>,
 ) -> Result<(), Error> {
+    let no_weather_error_duration_secs = 3 * weather_request_polling_interval_secs;
+
     let state_machine = StateMachine::new(STATE_COUNT, state_duration_secs);
 
     let mut last_weather_attempt = time::Instant::now();
@@ -100,12 +100,14 @@ pub fn run<T: LightSensor>(
         let now = time::Instant::now();
 
         let duration_since_last_weather = now.duration_since(last_weather_attempt);
-        if duration_since_last_weather > time::Duration::from_secs(WEATHER_DURATION_SECONDS) {
+        if duration_since_last_weather
+            > time::Duration::from_secs(weather_request_polling_interval_secs)
+        {
             last_weather_attempt = now;
 
             info!(
                 "Getting updated weather ({}s since last attempt)",
-                WEATHER_DURATION_SECONDS,
+                weather_request_polling_interval_secs,
             );
 
             match weather::get_weather(&uri, weather_request_timeout_millis) {
@@ -124,11 +126,10 @@ pub fn run<T: LightSensor>(
             };
         }
 
-        if now > last_weather_success + time::Duration::from_secs(NO_WEATHER_ERROR_DURATION_SECONDS)
-        {
+        if now > last_weather_success + time::Duration::from_secs(no_weather_error_duration_secs) {
             warn!(
                 "no successful weather in over {}s. Displaying empty weather",
-                NO_WEATHER_ERROR_DURATION_SECONDS
+                no_weather_error_duration_secs
             );
             display.print(&Local::now(), state_machine.current_state(), &None)?;
         } else {
