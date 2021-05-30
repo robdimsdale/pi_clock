@@ -150,7 +150,7 @@ fn console_date_str(time: &DateTime<Local>) -> String {
 }
 
 fn console_time_str(time: &DateTime<Local>) -> String {
-    let st = split_time(time).unwrap(); // TODO: remove error from signature
+    let st = split_time(time);
     format!("{}{}:{}{}", st[0], st[1], st[2], st[3])
 }
 
@@ -866,7 +866,7 @@ impl<'a, T: LightSensor> Display for SevenSegment4Display<'a, T> {
     }
 }
 
-fn split_time(t: &DateTime<Local>) -> Result<[u8; 4], Error> {
+fn split_time(t: &DateTime<Local>) -> [u8; 4] {
     let hour = t.hour();
     let minute = t.minute();
 
@@ -876,7 +876,7 @@ fn split_time(t: &DateTime<Local>) -> Result<[u8; 4], Error> {
     let d2 = (hour % 10) as u8;
     let d1 = (hour / 10) as u8 % 10;
 
-    Ok([d1, d2, d3, d4])
+    [d1, d2, d3, d4]
 }
 
 fn truncate_to_characters(s: &str, length: usize) -> String {
@@ -906,19 +906,19 @@ mod tests {
     #[test]
     fn test_split_time() -> Result<(), Box<dyn std::error::Error>> {
         assert_eq!(
-            split_time(&Local::now().with_hour(1).unwrap().with_minute(3).unwrap())?,
+            split_time(&Local::now().with_hour(1).unwrap().with_minute(3).unwrap()),
             [0, 1, 0, 3]
         );
         assert_eq!(
-            split_time(&Local::now().with_hour(0).unwrap().with_minute(0).unwrap())?,
+            split_time(&Local::now().with_hour(0).unwrap().with_minute(0).unwrap()),
             [0, 0, 0, 0]
         );
         assert_eq!(
-            split_time(&Local::now().with_hour(12).unwrap().with_minute(34).unwrap())?,
+            split_time(&Local::now().with_hour(12).unwrap().with_minute(34).unwrap()),
             [1, 2, 3, 4]
         );
         assert_eq!(
-            split_time(&Local::now().with_hour(23).unwrap().with_minute(59).unwrap())?,
+            split_time(&Local::now().with_hour(23).unwrap().with_minute(59).unwrap()),
             [2, 3, 5, 9]
         );
 
