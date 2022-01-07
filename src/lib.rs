@@ -137,18 +137,18 @@ struct StateMachine {
 
 impl StateMachine {
     fn new(state_count: u32, state_duration_secs: u32) -> Self {
-        let mut map = HashMap::new();
+        let mut state_map = HashMap::new();
 
         let mut current_build_state = 0;
         for i in 0..state_duration_secs * state_count {
-            map.insert(i, current_build_state);
+            state_map.insert(i, current_build_state);
             if (i + 1) % state_duration_secs == 0 {
                 current_build_state += 1;
             }
         }
 
         StateMachine {
-            state_map: map,
+            state_map,
             state_duration_secs,
             state_count,
         }
