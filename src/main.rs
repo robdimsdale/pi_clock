@@ -3,24 +3,24 @@ use simplelog::{ConfigBuilder, LevelFilter, TermLogger, TerminalMode};
 use std::time::Duration;
 use structopt::StructOpt;
 
-const CONSOLE_16X2_DISPLAY_TYPE: &'static str = "console-16x2";
-const CONSOLE_20X4_DISPLAY_TYPE: &'static str = "console-20x4";
+const CONSOLE_16X2_DISPLAY_TYPE: &str = "console-16x2";
+const CONSOLE_20X4_DISPLAY_TYPE: &str = "console-20x4";
 
 #[cfg(target_arch = "arm")]
-const LCD_16X2_DISPLAY_TYPE: &'static str = "lcd-16x2";
+const LCD_16X2_DISPLAY_TYPE: &str = "lcd-16x2";
 #[cfg(target_arch = "arm")]
-const LCD_20X4_DISPLAY_TYPE: &'static str = "lcd-20x4";
+const LCD_20X4_DISPLAY_TYPE: &str = "lcd-20x4";
 #[cfg(target_arch = "arm")]
-const ILI9341_DISPLAY_TYPE: &'static str = "ili9341";
+const ILI9341_DISPLAY_TYPE: &str = "ili9341";
 #[cfg(target_arch = "arm")]
-const ALPHANUM4_DISPLAY_TYPE: &'static str = "alphanum4";
+const ALPHANUM4_DISPLAY_TYPE: &str = "alphanum4";
 #[cfg(target_arch = "arm")]
-const SEVEN_SEGMENT_4_DISPLAY_TYPE: &'static str = "seven_segment4";
+const SEVEN_SEGMENT_4_DISPLAY_TYPE: &str = "seven_segment4";
 
-const RANDOM_LIGHT_SENSOR_TYPE: &'static str = "random";
-const TIME_LIGHT_SENSOR_TYPE: &'static str = "time";
+const RANDOM_LIGHT_SENSOR_TYPE: &str = "random";
+const TIME_LIGHT_SENSOR_TYPE: &str = "time";
 #[cfg(target_arch = "arm")]
-const VEML7700_LIGHT_SENSOR_TYPE: &'static str = "veml7700";
+const VEML7700_LIGHT_SENSOR_TYPE: &str = "veml7700";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let log_config = ConfigBuilder::new()

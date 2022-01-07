@@ -20,6 +20,7 @@ impl Error {
 
 /// The kind of an error that can occur.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum ErrorKind {
     LockRng,
 
@@ -30,14 +31,6 @@ pub enum ErrorKind {
 
     #[cfg(target_arch = "arm")]
     VEML(veml6030::Error<rppal::i2c::Error>),
-
-    /// Hints that destructuring should not be exhaustive.
-    ///
-    /// This enum may grow additional variants, so this makes sure clients
-    /// don't count on exhaustive matching. (Otherwise, adding a new variant
-    /// could break existing code.)
-    #[doc(hidden)]
-    __Nonexhaustive,
 }
 
 impl fmt::Display for Error {
@@ -54,8 +47,6 @@ impl fmt::Display for Error {
 
             #[cfg(target_arch = "arm")]
             ErrorKind::VEML(ref err) => write!(f, "{:?}", err),
-
-            ErrorKind::__Nonexhaustive => unreachable!(),
         }
     }
 }

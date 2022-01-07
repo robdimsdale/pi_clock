@@ -17,6 +17,7 @@ impl Error {
 
 /// The kind of an error that can occur.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum ErrorKind {
     LightSensor(LightError),
 
@@ -40,14 +41,6 @@ pub enum ErrorKind {
 
     #[cfg(target_arch = "arm")]
     HD44780(hd44780_driver::error::Error),
-
-    /// Hints that destructuring should not be exhaustive.
-    ///
-    /// This enum may grow additional variants, so this makes sure clients
-    /// don't count on exhaustive matching. (Otherwise, adding a new variant
-    /// could break existing code.)
-    #[doc(hidden)]
-    __Nonexhaustive,
 }
 
 impl fmt::Display for Error {
@@ -75,8 +68,6 @@ impl fmt::Display for Error {
 
             #[cfg(target_arch = "arm")]
             ErrorKind::HD44780(ref err) => write!(f, "{:?}", err),
-
-            ErrorKind::__Nonexhaustive => unreachable!(),
         }
     }
 }

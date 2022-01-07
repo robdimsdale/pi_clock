@@ -75,6 +75,12 @@ impl TimeLightSensor {
     }
 }
 
+impl Default for TimeLightSensor{
+    fn default() -> Self {
+        TimeLightSensor::new()
+    }
+}
+
 impl LightSensor for TimeLightSensor {
     fn read_light_normalized(&self) -> Result<f32, Error> {
         time_based_brightness_for_time(&Local::now().time())
@@ -168,6 +174,12 @@ impl RandomLightSensor {
         RandomLightSensor {
             rng: Mutex::new(thread_rng()),
         }
+    }
+}
+
+impl Default for RandomLightSensor{
+    fn default() -> Self {
+        RandomLightSensor::new()
     }
 }
 

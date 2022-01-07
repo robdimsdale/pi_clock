@@ -9,7 +9,7 @@ use std::time::Duration;
 pub fn get_weather(uri: &str, timeout: Duration) -> Result<OpenWeather, Error> {
     let agent = ureq::builder().timeout(timeout).build();
 
-    let response = agent.get(&uri).call()?.into_string()?;
+    let response = agent.get(uri).call()?.into_string()?;
 
     Ok(serde_json::from_str(&response)?)
 }
@@ -49,10 +49,10 @@ pub fn high_low_temp(w: &OpenWeather) -> ((DateTime<Local>, f32), (DateTime<Loca
         }
     }
 
-    return (
+    (
         (Local.timestamp(high.dt, 0), high.temp),
         (Local.timestamp(low.dt, 0), low.temp),
-    );
+    )
 }
 
 // Returns the next time that the rain is forecast to
@@ -79,7 +79,7 @@ pub fn next_rain_start_or_stop(w: &OpenWeather) -> Option<DateTime<Local>> {
         }
     }
 
-    return None;
+    None
 }
 
 #[cfg(test)]

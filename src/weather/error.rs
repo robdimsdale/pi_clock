@@ -16,29 +16,21 @@ impl Error {
 
 /// The kind of an error that can occur.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum ErrorKind {
-    HTTP(ureq::Error),
+    Http(ureq::Error),
     StringParse(std::io::Error),
     JSONParse(serde_json::Error),
     Transport(ureq::Error),
-
-    /// Hints that destructuring should not be exhaustive.
-    ///
-    /// This enum may grow additional variants, so this makes sure clients
-    /// don't count on exhaustive matching. (Otherwise, adding a new variant
-    /// could break existing code.)
-    #[doc(hidden)]
-    __Nonexhaustive,
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.kind {
-            ErrorKind::HTTP(ref err) => err.fmt(f),
+            ErrorKind::Http(ref err) => err.fmt(f),
             ErrorKind::StringParse(ref err) => err.fmt(f),
             ErrorKind::JSONParse(ref err) => err.fmt(f),
             ErrorKind::Transport(ref err) => err.fmt(f),
-            ErrorKind::__Nonexhaustive => unreachable!(),
         }
     }
 }
@@ -47,7 +39,7 @@ impl From<ureq::Error> for Error {
     fn from(e: ureq::Error) -> Self {
         match e {
             ureq::Error::Status(_, _) => Error {
-                kind: ErrorKind::HTTP(e),
+                kind: ErrorKind::Http(e),
             },
             ureq::Error::Transport(_) => Error {
                 kind: ErrorKind::Transport(e),

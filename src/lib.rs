@@ -37,16 +37,10 @@ impl Error {
 
 /// The kind of an error that can occur.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum ErrorKind {
-    Weather(weather::Error),
+    Weather(Box<weather::Error>),
     Display(display::Error),
-    /// Hints that destructuring should not be exhaustive.
-    ///
-    /// This enum may grow additional variants, so this makes sure clients
-    /// don't count on exhaustive matching. (Otherwise, adding a new variant
-    /// could break existing code.)
-    #[doc(hidden)]
-    __Nonexhaustive,
 }
 
 impl fmt::Display for Error {
@@ -54,7 +48,6 @@ impl fmt::Display for Error {
         match self.kind {
             ErrorKind::Weather(ref err) => err.fmt(f),
             ErrorKind::Display(ref err) => err.fmt(f),
-            ErrorKind::__Nonexhaustive => unreachable!(),
         }
     }
 }
@@ -62,7 +55,7 @@ impl fmt::Display for Error {
 impl From<weather::Error> for Error {
     fn from(e: weather::Error) -> Self {
         Error {
-            kind: ErrorKind::Weather(e),
+            kind: ErrorKind::Weather(Box::new(e)),
         }
     }
 }
@@ -156,12 +149,12 @@ impl StateMachine {
 
         StateMachine {
             state_map: map,
-            state_duration_secs: state_duration_secs,
-            state_count: state_count,
+            state_duration_secs,
+            state_count,
         }
     }
 
-    fn current_state(self: &Self) -> u32 {
+    fn current_state(&self) -> u32 {
         let second_mod = Local::now().second() % (self.state_duration_secs * self.state_count);
         *self.state_map.get(&second_mod).unwrap()
     }

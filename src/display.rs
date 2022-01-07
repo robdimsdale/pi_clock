@@ -108,7 +108,7 @@ pub struct Console16x2Display<'a, T: LightSensor> {
 impl<'a, T: LightSensor> Console16x2Display<'a, T> {
     pub fn new(light_sensor: &'a T) -> Console16x2Display<'a, T> {
         Console16x2Display {
-            light_sensor: light_sensor,
+            light_sensor,
         }
     }
 }
@@ -120,16 +120,16 @@ impl<'a, T: LightSensor> Display for Console16x2Display<'a, T> {
         _: u32,
         weather: &Option<OpenWeather>,
     ) -> Result<(), Error> {
-        let (weather_desc, temp_str) = console_weather_and_temp_str(&weather, 3, 7);
+        let (weather_desc, temp_str) = console_weather_and_temp_str(weather, 3, 7);
 
-        let first_row = format!("{} {:>10}", console_time_str(&time), weather_desc);
-        let second_row = format!("{} {}", console_date_str(&time), temp_str);
+        let first_row = format!("{} {:>10}", console_time_str(time), weather_desc);
+        let second_row = format!("{} {}", console_date_str(time), temp_str);
 
         println!();
-        println!("-{}-", std::iter::repeat("-").take(16).collect::<String>());
+        println!("-{}-", "-".repeat(16));
         println!("|{}|", first_row);
         println!("|{}|", second_row);
-        println!("-{}-", std::iter::repeat("-").take(16).collect::<String>());
+        println!("-{}-", "-".repeat(16));
 
         println!(
             "Current light: {}",
@@ -187,7 +187,7 @@ pub struct Console20x4Display<'a, T: LightSensor> {
 impl<'a, T: LightSensor> Console20x4Display<'a, T> {
     pub fn new(light_sensor: &'a T) -> Console20x4Display<'a, T> {
         Console20x4Display {
-            light_sensor: light_sensor,
+            light_sensor,
         }
     }
 }
@@ -199,30 +199,30 @@ impl<'a, T: LightSensor> Display for Console20x4Display<'a, T> {
         current_state_index: u32,
         weather: &Option<OpenWeather>,
     ) -> Result<(), Error> {
-        let (weather_desc, temp_str) = console_weather_and_temp_str(&weather, 3, 14);
+        let (weather_desc, temp_str) = console_weather_and_temp_str(weather, 3, 14);
 
-        let (high_temp_str, low_temp_str) = high_low_strs(&weather);
+        let (high_temp_str, low_temp_str) = high_low_strs(weather);
 
         // time is always 5 chars, date is always 10 chars
-        let first_row = format!("{} {:>14}", console_time_str(&time), weather_desc);
-        let second_row = format!("{} {:>9}", console_date_str(&time), temp_str);
+        let first_row = format!("{} {:>14}", console_time_str(time), weather_desc);
+        let second_row = format!("{} {:>9}", console_date_str(time), temp_str);
 
         let third_row = format!("{:<20}", "");
 
         let fourth_row = match current_state_index {
-            0 => format!("{:<20}", rain_forecast_str(&weather)),
+            0 => format!("{:<20}", rain_forecast_str(weather)),
             1 => format!("{:<20}", high_temp_str,),
             2 => format!("{:<20}", low_temp_str),
             _ => panic!("Invalid state index"),
         };
 
         println!();
-        println!("-{}-", std::iter::repeat("-").take(20).collect::<String>());
+        println!("-{}-", "-".repeat(20));
         println!("|{}|", first_row);
         println!("|{}|", second_row);
         println!("|{}|", third_row);
         println!("|{}|", fourth_row);
-        println!("-{}-", std::iter::repeat("-").take(20).collect::<String>());
+        println!("-{}-", "-".repeat(20));
 
         println!(
             "Current light: {}",
@@ -235,16 +235,16 @@ impl<'a, T: LightSensor> Display for Console20x4Display<'a, T> {
 
 fn rain_forecast_str(weather: &Option<OpenWeather>) -> String {
     match weather {
-        Some(w) => match next_rain_start_or_stop(&w) {
+        Some(w) => match next_rain_start_or_stop(w) {
             Some(ts) => {
-                if currently_raining(&w) {
+                if currently_raining(w) {
                     format!("Rain stops at {:02}:00", ts.hour())
                 } else {
                     format!("Rain starts at {:02}:00", ts.hour())
                 }
             }
             None => {
-                if currently_raining(&w) {
+                if currently_raining(w) {
                     "Rain for next 24h".to_string()
                 } else {
                     "No rain for next 24h".to_string()
@@ -258,7 +258,7 @@ fn rain_forecast_str(weather: &Option<OpenWeather>) -> String {
 fn high_low_strs(weather: &Option<OpenWeather>) -> (String, String) {
     match weather {
         Some(w) => {
-            let ((high_time, high_temp), (low_time, low_temp)) = high_low_temp(&w);
+            let ((high_time, high_temp), (low_time, low_temp)) = high_low_temp(w);
             (
                 format!(
                     "High: {}°F at {:02}:00",
@@ -564,6 +564,7 @@ impl<'a, T: LightSensor> Display for LCD20x4Display<'a, T> {
     }
 }
 
+#[cfg(target_arch = "arm")]
 fn str_to_lcd_bytes(s: &str) -> Vec<u8> {
     s.replace("°", "#") // Pick a character that we know won't appear in the string elsewhere
         .as_bytes()
