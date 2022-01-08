@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use std::fmt;
 
 #[derive(Deserialize, Debug, Default)]
 #[serde(default)]
@@ -53,9 +54,56 @@ pub struct Snow {
 #[serde(default)]
 pub struct Weather {
     pub id: i32,
-    pub main: String,
+    pub main: Main,
     pub description: String,
     pub icon: String,
+}
+
+#[derive(Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Main {
+    Thunderstorm,
+    Drizzle,
+    Rain,
+    Snow,
+    Mist,
+    Smoke,
+    Haze,
+    Dust,
+    Fog,
+    Sand,
+    Ash,
+    Squall,
+    Tornado,
+    Clear,
+    Clouds,
+}
+
+impl Default for Main {
+    fn default() -> Main {
+        Main::Clear
+    }
+}
+
+impl fmt::Display for Main {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Main::Thunderstorm => write!(f, "Thunderstorm"),
+            Main::Drizzle => write!(f, "Drizzle"),
+            Main::Rain => write!(f, "Rain"),
+            Main::Snow => write!(f, "Snow"),
+            Main::Mist => write!(f, "Mist"),
+            Main::Smoke => write!(f, "Smoke"),
+            Main::Haze => write!(f, "Haze"),
+            Main::Dust => write!(f, "Dust"),
+            Main::Fog => write!(f, "Fog"),
+            Main::Sand => write!(f, "Sand"),
+            Main::Ash => write!(f, "Ash"),
+            Main::Squall => write!(f, "Squall"),
+            Main::Tornado => write!(f, "Tornado"),
+            Main::Clear => write!(f, "Clear"),
+            Main::Clouds => write!(f, "Clouds"),
+        }
+    }
 }
 
 #[derive(Deserialize, Debug, Default)]

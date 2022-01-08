@@ -163,7 +163,7 @@ fn console_weather_and_temp_str(
         Some(w) => (
             format!(
                 "{:>width$}",
-                truncate_to_characters(&w.current.weather[0].main, weather_chars),
+                truncate_to_characters(&w.current.weather[0].main.to_string(), weather_chars),
                 width = weather_chars
             ),
             format!(

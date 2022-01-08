@@ -3,7 +3,7 @@ mod open_weather_types;
 
 use chrono::{DateTime, Local, TimeZone};
 pub use error::Error;
-pub use open_weather_types::OpenWeather;
+pub use open_weather_types::{Main, OpenWeather};
 use std::time::Duration;
 
 pub fn get_weather(uri: &str, timeout: Duration) -> Result<OpenWeather, Error> {
@@ -23,7 +23,7 @@ fn timestamp_after_24_hours(ts: &DateTime<Local>) -> bool {
 }
 
 pub fn currently_raining(w: &OpenWeather) -> bool {
-    w.current.weather[0].main == "Rain"
+    w.current.weather[0].main == Main::Rain
 }
 
 pub fn high_low_temp(w: &OpenWeather) -> ((DateTime<Local>, f32), (DateTime<Local>, f32)) {
@@ -70,11 +70,11 @@ pub fn next_rain_start_or_stop(w: &OpenWeather) -> Option<DateTime<Local>> {
             return None;
         }
 
-        if currently_raining(w) && h.weather[0].main != "Rain" {
+        if currently_raining(w) && h.weather[0].main != Main::Rain {
             return Some(ts);
         }
 
-        if !currently_raining(w) && h.weather[0].main == "Rain" {
+        if !currently_raining(w) && h.weather[0].main == Main::Rain {
             return Some(ts);
         }
     }
@@ -92,7 +92,7 @@ mod tests {
         let mut w: OpenWeather = Default::default();
         w.current.weather = vec![Weather {
             id: 1234,
-            main: "Rain".to_string(),
+            main: Main::Rain,
             description: "Light Rain".to_string(),
             icon: "some-icon".to_string(),
         }];
@@ -105,19 +105,19 @@ mod tests {
 
         w.hourly[0].weather = vec![Weather {
             id: 2345,
-            main: "Rain".to_string(),
+            main: Main::Rain,
             description: "Light Rain".to_string(),
             icon: "some-icon".to_string(),
         }];
         w.hourly[1].weather = vec![Weather {
             id: 2345,
-            main: "Rain".to_string(),
+            main: Main::Rain,
             description: "Light Rain".to_string(),
             icon: "some-icon".to_string(),
         }];
         w.hourly[2].weather = vec![Weather {
             id: 2345,
-            main: "Clear".to_string(),
+            main: Main::Clear,
             description: "Clear".to_string(),
             icon: "some-icon".to_string(),
         }];
@@ -132,7 +132,7 @@ mod tests {
         let mut w: OpenWeather = Default::default();
         w.current.weather = vec![Weather {
             id: 1234,
-            main: "Clear".to_string(),
+            main: Main::Clear,
             description: "Clear".to_string(),
             icon: "some-icon".to_string(),
         }];
@@ -145,19 +145,19 @@ mod tests {
 
         w.hourly[0].weather = vec![Weather {
             id: 2345,
-            main: "Rain".to_string(),
+            main: Main::Rain,
             description: "Light Rain".to_string(),
             icon: "some-icon".to_string(),
         }];
         w.hourly[1].weather = vec![Weather {
             id: 2345,
-            main: "Rain".to_string(),
+            main: Main::Rain,
             description: "Light Rain".to_string(),
             icon: "some-icon".to_string(),
         }];
         w.hourly[2].weather = vec![Weather {
             id: 2345,
-            main: "Clear".to_string(),
+            main: Main::Clear,
             description: "Clear".to_string(),
             icon: "some-icon".to_string(),
         }];
@@ -172,7 +172,7 @@ mod tests {
         let mut w: OpenWeather = Default::default();
         w.current.weather = vec![Weather {
             id: 1234,
-            main: "Clear".to_string(),
+            main: Main::Clear,
             description: "Clear".to_string(),
             icon: "some-icon".to_string(),
         }];
@@ -185,19 +185,19 @@ mod tests {
 
         w.hourly[0].weather = vec![Weather {
             id: 2345,
-            main: "Rain".to_string(),
+            main: Main::Rain,
             description: "Light Rain".to_string(),
             icon: "some-icon".to_string(),
         }];
         w.hourly[1].weather = vec![Weather {
             id: 2345,
-            main: "Clear".to_string(),
+            main: Main::Clear,
             description: "Clear".to_string(),
             icon: "some-icon".to_string(),
         }];
         w.hourly[2].weather = vec![Weather {
             id: 2345,
-            main: "Clear".to_string(),
+            main: Main::Clear,
             description: "Clear".to_string(),
             icon: "some-icon".to_string(),
         }];
@@ -212,7 +212,7 @@ mod tests {
         let mut w: OpenWeather = Default::default();
         w.current.weather = vec![Weather {
             id: 1234,
-            main: "Rain".to_string(),
+            main: Main::Rain,
             description: "Rain".to_string(),
             icon: "some-icon".to_string(),
         }];
@@ -225,19 +225,19 @@ mod tests {
 
         w.hourly[0].weather = vec![Weather {
             id: 2345,
-            main: "Clear".to_string(),
+            main: Main::Clear,
             description: "Clear".to_string(),
             icon: "some-icon".to_string(),
         }];
         w.hourly[1].weather = vec![Weather {
             id: 2345,
-            main: "Rain".to_string(),
+            main: Main::Rain,
             description: "Light Rain".to_string(),
             icon: "some-icon".to_string(),
         }];
         w.hourly[2].weather = vec![Weather {
             id: 2345,
-            main: "Rain".to_string(),
+            main: Main::Rain,
             description: "Rain".to_string(),
             icon: "some-icon".to_string(),
         }];
@@ -252,7 +252,7 @@ mod tests {
         let mut w: OpenWeather = Default::default();
         w.current.weather = vec![Weather {
             id: 1234,
-            main: "Rain".to_string(),
+            main: Main::Rain,
             description: "Rain".to_string(),
             icon: "some-icon".to_string(),
         }];
@@ -266,19 +266,19 @@ mod tests {
 
         w.hourly[0].weather = vec![Weather {
             id: 2345,
-            main: "Clear".to_string(),
+            main: Main::Clear,
             description: "Clear".to_string(),
             icon: "some-icon".to_string(),
         }];
         w.hourly[1].weather = vec![Weather {
             id: 2345,
-            main: "Rain".to_string(),
+            main: Main::Rain,
             description: "Light Rain".to_string(),
             icon: "some-icon".to_string(),
         }];
         w.hourly[2].weather = vec![Weather {
             id: 2345,
-            main: "Clear".to_string(),
+            main: Main::Clear,
             description: "Clear".to_string(),
             icon: "some-icon".to_string(),
         }];
