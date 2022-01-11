@@ -22,7 +22,6 @@ fn timestamp_after_24_hours(ts: &DateTime<Local>) -> bool {
     *ts - Local::now() > chrono::Duration::hours(24)
 }
 
-// TODO: add tests for PrecipitationChanges for types beyond rain
 fn is_precipitation(w: Main) -> bool {
     matches!(
         w,
