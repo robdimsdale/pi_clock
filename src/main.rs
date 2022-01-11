@@ -22,6 +22,30 @@ const TIME_LIGHT_SENSOR_TYPE: &str = "time";
 #[cfg(target_arch = "arm")]
 const VEML7700_LIGHT_SENSOR_TYPE: &str = "veml7700";
 
+#[cfg(not(target_arch = "arm"))]
+const VALID_DISPLAY_TYPES: &[&str] = &[CONSOLE_16X2_DISPLAY_TYPE, CONSOLE_20X4_DISPLAY_TYPE];
+
+#[cfg(target_arch = "arm")]
+const VALID_DISPLAY_TYPES: &[&str] = &[
+    CONSOLE_16X2_DISPLAY_TYPE,
+    CONSOLE_20X4_DISPLAY_TYPE,
+    LCD_16X2_DISPLAY_TYPE,
+    LCD_20X4_DISPLAY_TYPE,
+    ILI9341_DISPLAY_TYPE,
+    ALPHANUM4_DISPLAY_TYPE,
+    SEVEN_SEGMENT_4_DISPLAY_TYPE,
+];
+
+#[cfg(not(target_arch = "arm"))]
+const VALID_LIGHT_SENSOR_TYPES: &[&str] = &[RANDOM_LIGHT_SENSOR_TYPE, TIME_LIGHT_SENSOR_TYPE];
+
+#[cfg(target_arch = "arm")]
+const VALID_LIGHT_SENSOR_TYPES: &[&str] = &[
+    RANDOM_LIGHT_SENSOR_TYPE,
+    TIME_LIGHT_SENSOR_TYPE,
+    VEML7700_LIGHT_SENSOR_TYPE,
+];
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let log_config = ConfigBuilder::new()
         .set_time_to_local(true)
@@ -127,9 +151,9 @@ struct Cli {
     #[structopt(long, default_value = "3")]
     state_duration_secs: u64,
 
-    #[structopt(long, default_value=RANDOM_LIGHT_SENSOR_TYPE)]
+    #[structopt(long, possible_values(VALID_LIGHT_SENSOR_TYPES),default_value=RANDOM_LIGHT_SENSOR_TYPE)]
     light_sensor_type: String,
 
-    #[structopt(long = "display-type", default_value=CONSOLE_16X2_DISPLAY_TYPE)]
+    #[structopt(long = "display-type", possible_values(VALID_DISPLAY_TYPES),default_value=CONSOLE_16X2_DISPLAY_TYPE)]
     display_types: Vec<String>,
 }
