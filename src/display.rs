@@ -1,7 +1,7 @@
 mod error;
 
 use crate::light::LightSensor;
-use crate::weather::{currently_raining, high_low_temp, next_rain_start_or_stop, OpenWeather};
+use crate::weather::{high_low_temp, next_precipitation_change, OpenWeather, PrecipitationChange};
 pub use error::Error;
 
 use chrono::{DateTime, Datelike, Local, Month, Timelike};
@@ -107,9 +107,7 @@ pub struct Console16x2Display<'a, T: LightSensor> {
 
 impl<'a, T: LightSensor> Console16x2Display<'a, T> {
     pub fn new(light_sensor: &'a T) -> Console16x2Display<'a, T> {
-        Console16x2Display {
-            light_sensor,
-        }
+        Console16x2Display { light_sensor }
     }
 }
 
@@ -186,9 +184,7 @@ pub struct Console20x4Display<'a, T: LightSensor> {
 
 impl<'a, T: LightSensor> Console20x4Display<'a, T> {
     pub fn new(light_sensor: &'a T) -> Console20x4Display<'a, T> {
-        Console20x4Display {
-            light_sensor,
-        }
+        Console20x4Display { light_sensor }
     }
 }
 
@@ -235,21 +231,19 @@ impl<'a, T: LightSensor> Display for Console20x4Display<'a, T> {
 
 fn rain_forecast_str(weather: &Option<OpenWeather>) -> String {
     match weather {
-        Some(w) => match next_rain_start_or_stop(w) {
-            Some(ts) => {
-                if currently_raining(w) {
-                    format!("Rain stops at {:02}:00", ts.hour())
-                } else {
-                    format!("Rain starts at {:02}:00", ts.hour())
-                }
+        Some(w) => match next_precipitation_change(w) {
+            PrecipitationChange::Start(ts, p) => {
+                format!("{} starts at {:02}:00", p, ts.hour())
             }
-            None => {
-                if currently_raining(w) {
-                    "Rain for next 24h".to_string()
-                } else {
-                    "No rain for next 24h".to_string()
-                }
+            PrecipitationChange::Stop(ts, p) => {
+                format!("{} stops at {:02}:00", p, ts.hour())
             }
+            PrecipitationChange::NoChange(maybe_p) => match maybe_p {
+                Some(p) => {
+                    format!("{} for next 24h", p)
+                }
+                None => "No rain for next 24h".to_string(),
+            },
         },
         None => "".to_string(),
     }

@@ -22,8 +22,12 @@ fn timestamp_after_24_hours(ts: &DateTime<Local>) -> bool {
     *ts - Local::now() > chrono::Duration::hours(24)
 }
 
-pub fn currently_raining(w: &OpenWeather) -> bool {
-    w.current.weather[0].main == Main::Rain
+// TODO: add tests for PrecipitationChanges for types beyond rain
+fn is_precipitation(w: Main) -> bool {
+    matches!(
+        w,
+        Main::Rain | Main::Snow | Main::Drizzle | Main::Thunderstorm
+    )
 }
 
 pub fn high_low_temp(w: &OpenWeather) -> ((DateTime<Local>, f32), (DateTime<Local>, f32)) {
@@ -55,11 +59,27 @@ pub fn high_low_temp(w: &OpenWeather) -> ((DateTime<Local>, f32), (DateTime<Loca
     )
 }
 
-// Returns the next time that the rain is forecast to
-// start (if it is not currently raining)
-// or stop (if it is currently raining)
-// If the rain will not change within the next 24 hours, no time is returned.
-pub fn next_rain_start_or_stop(w: &OpenWeather) -> Option<DateTime<Local>> {
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum PrecipitationChange {
+    Start(DateTime<Local>, Main),
+    Stop(DateTime<Local>, Main),
+    NoChange(Option<Main>),
+}
+
+// Returns the next time that precipitation is forecast
+// to start (if it is not currently precipitating)
+// or to stop (if it is currently precipitating)
+// If the precipitation changes between multiple types, all precipitation is assumed to be that
+// type.
+// e.g. If it is currently raining, then it snows, then it stops snowing, only the stop time
+// is returned, and the precipitation change type is rain.
+pub fn next_precipitation_change(w: &OpenWeather) -> PrecipitationChange {
+    let current_precipitation = if is_precipitation(w.current.weather[0].main) {
+        Some(w.current.weather[0].main)
+    } else {
+        None
+    };
+
     for h in w.hourly.iter() {
         let ts = Local.timestamp(h.dt, 0);
         if timestamp_before_now(&ts) {
@@ -67,19 +87,24 @@ pub fn next_rain_start_or_stop(w: &OpenWeather) -> Option<DateTime<Local>> {
         }
 
         if timestamp_after_24_hours(&ts) {
-            return None;
+            return PrecipitationChange::NoChange(current_precipitation);
         }
 
-        if currently_raining(w) && h.weather[0].main != Main::Rain {
-            return Some(ts);
-        }
-
-        if !currently_raining(w) && h.weather[0].main == Main::Rain {
-            return Some(ts);
+        match current_precipitation {
+            Some(p) => {
+                if !is_precipitation(h.weather[0].main) {
+                    return PrecipitationChange::Stop(ts, p);
+                }
+            }
+            None => {
+                if is_precipitation(h.weather[0].main) {
+                    return PrecipitationChange::Start(ts, h.weather[0].main);
+                }
+            }
         }
     }
 
-    None
+    PrecipitationChange::NoChange(current_precipitation)
 }
 
 #[cfg(test)]
@@ -88,52 +113,12 @@ mod tests {
     use crate::weather::open_weather_types::Weather;
 
     #[test]
-    fn test_next_rain_start() {
-        let mut w: OpenWeather = Default::default();
-        w.current.weather = vec![Weather {
-            id: 1234,
-            main: Main::Rain,
-            description: "Light Rain".to_string(),
-            icon: "some-icon".to_string(),
-        }];
-
-        w.hourly = vec![Default::default(), Default::default(), Default::default()];
-
-        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
-        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
-        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
-
-        w.hourly[0].weather = vec![Weather {
-            id: 2345,
-            main: Main::Rain,
-            description: "Light Rain".to_string(),
-            icon: "some-icon".to_string(),
-        }];
-        w.hourly[1].weather = vec![Weather {
-            id: 2345,
-            main: Main::Rain,
-            description: "Light Rain".to_string(),
-            icon: "some-icon".to_string(),
-        }];
-        w.hourly[2].weather = vec![Weather {
-            id: 2345,
-            main: Main::Clear,
-            description: "Clear".to_string(),
-            icon: "some-icon".to_string(),
-        }];
-
-        let maybe_next_change = next_rain_start_or_stop(&w);
-
-        assert_eq!(maybe_next_change, Some(Local.timestamp(w.hourly[2].dt, 0)));
-    }
-
-    #[test]
     fn test_next_rain_stop() {
         let mut w: OpenWeather = Default::default();
         w.current.weather = vec![Weather {
             id: 1234,
-            main: Main::Clear,
-            description: "Clear".to_string(),
+            main: Main::Rain,
+            description: "Light Rain".to_string(),
             icon: "some-icon".to_string(),
         }];
 
@@ -162,13 +147,304 @@ mod tests {
             icon: "some-icon".to_string(),
         }];
 
-        let maybe_next_change = next_rain_start_or_stop(&w);
+        let maybe_next_change = next_precipitation_change(&w);
+        let expected = PrecipitationChange::Stop(Local.timestamp(w.hourly[2].dt, 0), Main::Rain);
 
-        assert_eq!(maybe_next_change, Some(Local.timestamp(w.hourly[1].dt, 0)));
+        assert_eq!(maybe_next_change, expected);
     }
 
     #[test]
-    fn test_next_rain_never_starts() {
+    fn test_next_rain_start() {
+        let mut w: OpenWeather = Default::default();
+        w.current.weather = vec![Weather {
+            id: 1234,
+            main: Main::Clear,
+            description: "Clear".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        w.hourly = vec![Default::default(), Default::default(), Default::default()];
+
+        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+
+        w.hourly[0].weather = vec![Weather {
+            id: 2345,
+            main: Main::Clear,
+            description: "Clear".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[1].weather = vec![Weather {
+            id: 2345,
+            main: Main::Rain,
+            description: "Light Rain".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[2].weather = vec![Weather {
+            id: 2345,
+            main: Main::Clear,
+            description: "Clear".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        let maybe_next_change = next_precipitation_change(&w);
+        let expected = PrecipitationChange::Start(Local.timestamp(w.hourly[1].dt, 0), Main::Rain);
+
+        assert_eq!(maybe_next_change, expected)
+    }
+
+    #[test]
+    fn test_next_snow_stop() {
+        let mut w: OpenWeather = Default::default();
+        w.current.weather = vec![Weather {
+            id: 1234,
+            main: Main::Snow,
+            description: "Light Snow".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        w.hourly = vec![Default::default(), Default::default(), Default::default()];
+
+        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+
+        w.hourly[0].weather = vec![Weather {
+            id: 2345,
+            main: Main::Snow,
+            description: "Light Snow".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[1].weather = vec![Weather {
+            id: 2345,
+            main: Main::Snow,
+            description: "Light Snow".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[2].weather = vec![Weather {
+            id: 2345,
+            main: Main::Clear,
+            description: "Clear".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        let maybe_next_change = next_precipitation_change(&w);
+        let expected = PrecipitationChange::Stop(Local.timestamp(w.hourly[2].dt, 0), Main::Snow);
+
+        assert_eq!(maybe_next_change, expected);
+    }
+
+    #[test]
+    fn test_next_snow_start() {
+        let mut w: OpenWeather = Default::default();
+        w.current.weather = vec![Weather {
+            id: 1234,
+            main: Main::Clear,
+            description: "Clear".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        w.hourly = vec![Default::default(), Default::default(), Default::default()];
+
+        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+
+        w.hourly[0].weather = vec![Weather {
+            id: 2345,
+            main: Main::Clear,
+            description: "Clear".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[1].weather = vec![Weather {
+            id: 2345,
+            main: Main::Snow,
+            description: "Light Snow".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[2].weather = vec![Weather {
+            id: 2345,
+            main: Main::Clear,
+            description: "Clear".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        let maybe_next_change = next_precipitation_change(&w);
+        let expected = PrecipitationChange::Start(Local.timestamp(w.hourly[1].dt, 0), Main::Snow);
+
+        assert_eq!(maybe_next_change, expected)
+    }
+
+    #[test]
+    fn test_next_drizzle_stop() {
+        let mut w: OpenWeather = Default::default();
+        w.current.weather = vec![Weather {
+            id: 1234,
+            main: Main::Drizzle,
+            description: "Light Drizzle".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        w.hourly = vec![Default::default(), Default::default(), Default::default()];
+
+        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+
+        w.hourly[0].weather = vec![Weather {
+            id: 2345,
+            main: Main::Drizzle,
+            description: "Light Drizzle".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[1].weather = vec![Weather {
+            id: 2345,
+            main: Main::Drizzle,
+            description: "Light Drizzle".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[2].weather = vec![Weather {
+            id: 2345,
+            main: Main::Clear,
+            description: "Clear".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        let maybe_next_change = next_precipitation_change(&w);
+        let expected = PrecipitationChange::Stop(Local.timestamp(w.hourly[2].dt, 0), Main::Drizzle);
+
+        assert_eq!(maybe_next_change, expected);
+    }
+
+    #[test]
+    fn test_next_drizzle_start() {
+        let mut w: OpenWeather = Default::default();
+        w.current.weather = vec![Weather {
+            id: 1234,
+            main: Main::Clear,
+            description: "Clear".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        w.hourly = vec![Default::default(), Default::default(), Default::default()];
+
+        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+
+        w.hourly[0].weather = vec![Weather {
+            id: 2345,
+            main: Main::Clear,
+            description: "Clear".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[1].weather = vec![Weather {
+            id: 2345,
+            main: Main::Drizzle,
+            description: "Light Drizzle".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[2].weather = vec![Weather {
+            id: 2345,
+            main: Main::Clear,
+            description: "Clear".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        let maybe_next_change = next_precipitation_change(&w);
+        let expected =
+            PrecipitationChange::Start(Local.timestamp(w.hourly[1].dt, 0), Main::Drizzle);
+
+        assert_eq!(maybe_next_change, expected)
+    }
+
+    #[test]
+    fn test_next_thunderstorm_stop() {
+        let mut w: OpenWeather = Default::default();
+        w.current.weather = vec![Weather {
+            id: 1234,
+            main: Main::Thunderstorm,
+            description: "Light Thunderstorm".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        w.hourly = vec![Default::default(), Default::default(), Default::default()];
+
+        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+
+        w.hourly[0].weather = vec![Weather {
+            id: 2345,
+            main: Main::Thunderstorm,
+            description: "Light Thunderstorm".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[1].weather = vec![Weather {
+            id: 2345,
+            main: Main::Thunderstorm,
+            description: "Light Thunderstorm".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[2].weather = vec![Weather {
+            id: 2345,
+            main: Main::Clear,
+            description: "Clear".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        let maybe_next_change = next_precipitation_change(&w);
+        let expected =
+            PrecipitationChange::Stop(Local.timestamp(w.hourly[2].dt, 0), Main::Thunderstorm);
+
+        assert_eq!(maybe_next_change, expected);
+    }
+
+    #[test]
+    fn test_next_thunderstorm_start() {
+        let mut w: OpenWeather = Default::default();
+        w.current.weather = vec![Weather {
+            id: 1234,
+            main: Main::Clear,
+            description: "Clear".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        w.hourly = vec![Default::default(), Default::default(), Default::default()];
+
+        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+
+        w.hourly[0].weather = vec![Weather {
+            id: 2345,
+            main: Main::Clear,
+            description: "Clear".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[1].weather = vec![Weather {
+            id: 2345,
+            main: Main::Thunderstorm,
+            description: "Light Thunderstorm".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[2].weather = vec![Weather {
+            id: 2345,
+            main: Main::Clear,
+            description: "Clear".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        let maybe_next_change = next_precipitation_change(&w);
+        let expected =
+            PrecipitationChange::Start(Local.timestamp(w.hourly[1].dt, 0), Main::Thunderstorm);
+
+        assert_eq!(maybe_next_change, expected)
+    }
+
+    #[test]
+    fn test_next_precipitation_never_starts() {
         let mut w: OpenWeather = Default::default();
         w.current.weather = vec![Weather {
             id: 1234,
@@ -202,9 +478,132 @@ mod tests {
             icon: "some-icon".to_string(),
         }];
 
-        let maybe_next_change = next_rain_start_or_stop(&w);
+        let maybe_next_change = next_precipitation_change(&w);
 
-        assert_eq!(maybe_next_change, None);
+        assert_eq!(maybe_next_change, PrecipitationChange::NoChange(None));
+    }
+
+    #[test]
+    fn test_next_precipitation_stops_changes_precipitation_type() {
+        let mut w: OpenWeather = Default::default();
+        w.current.weather = vec![Weather {
+            id: 1234,
+            main: Main::Rain,
+            description: "Light Rain".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        w.hourly = vec![Default::default(), Default::default(), Default::default()];
+
+        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+
+        w.hourly[0].weather = vec![Weather {
+            id: 2345,
+            main: Main::Snow,
+            description: "Light Snow".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[1].weather = vec![Weather {
+            id: 2345,
+            main: Main::Drizzle,
+            description: "Light Drizzle".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[2].weather = vec![Weather {
+            id: 2345,
+            main: Main::Clear,
+            description: "Clear".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        let maybe_next_change = next_precipitation_change(&w);
+        let expected = PrecipitationChange::Stop(Local.timestamp(w.hourly[2].dt, 0), Main::Rain);
+
+        assert_eq!(maybe_next_change, expected)
+    }
+
+    #[test]
+    fn test_next_precipitation_starts_changes_precipitation_type() {
+        let mut w: OpenWeather = Default::default();
+        w.current.weather = vec![Weather {
+            id: 1234,
+            main: Main::Clear,
+            description: "Clear".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        w.hourly = vec![Default::default(), Default::default(), Default::default()];
+
+        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+
+        w.hourly[0].weather = vec![Weather {
+            id: 2345,
+            main: Main::Clear,
+            description: "Clear".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[1].weather = vec![Weather {
+            id: 2345,
+            main: Main::Rain,
+            description: "Light Rain".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[2].weather = vec![Weather {
+            id: 2345,
+            main: Main::Drizzle,
+            description: "Light Drizzle".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        let maybe_next_change = next_precipitation_change(&w);
+        let expected = PrecipitationChange::Start(Local.timestamp(w.hourly[1].dt, 0), Main::Rain);
+
+        assert_eq!(maybe_next_change, expected)
+    }
+
+    #[test]
+    fn test_next_precipitation_continues_changes_precipitation_type() {
+        let mut w: OpenWeather = Default::default();
+        w.current.weather = vec![Weather {
+            id: 1234,
+            main: Main::Rain,
+            description: "Light Rain".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        w.hourly = vec![Default::default(), Default::default(), Default::default()];
+
+        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+
+        w.hourly[0].weather = vec![Weather {
+            id: 2345,
+            main: Main::Rain,
+            description: "Light Rain".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[1].weather = vec![Weather {
+            id: 2345,
+            main: Main::Snow,
+            description: "Light Snow".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+        w.hourly[2].weather = vec![Weather {
+            id: 2345,
+            main: Main::Drizzle,
+            description: "Light Drizzle".to_string(),
+            icon: "some-icon".to_string(),
+        }];
+
+        let maybe_next_change = next_precipitation_change(&w);
+        let expected = PrecipitationChange::NoChange(Some(Main::Rain));
+
+        assert_eq!(maybe_next_change, expected)
     }
 
     #[test]
@@ -242,9 +641,12 @@ mod tests {
             icon: "some-icon".to_string(),
         }];
 
-        let maybe_next_change = next_rain_start_or_stop(&w);
+        let maybe_next_change = next_precipitation_change(&w);
 
-        assert_eq!(maybe_next_change, None);
+        assert_eq!(
+            maybe_next_change,
+            PrecipitationChange::NoChange(Some(Main::Rain))
+        );
     }
 
     #[test]
@@ -252,8 +654,8 @@ mod tests {
         let mut w: OpenWeather = Default::default();
         w.current.weather = vec![Weather {
             id: 1234,
-            main: Main::Rain,
-            description: "Rain".to_string(),
+            main: Main::Clear,
+            description: "Clear".to_string(),
             icon: "some-icon".to_string(),
         }];
 
@@ -272,19 +674,19 @@ mod tests {
         }];
         w.hourly[1].weather = vec![Weather {
             id: 2345,
-            main: Main::Rain,
-            description: "Light Rain".to_string(),
-            icon: "some-icon".to_string(),
-        }];
-        w.hourly[2].weather = vec![Weather {
-            id: 2345,
             main: Main::Clear,
             description: "Clear".to_string(),
             icon: "some-icon".to_string(),
         }];
+        w.hourly[2].weather = vec![Weather {
+            id: 2345,
+            main: Main::Rain,
+            description: "Light Rain".to_string(),
+            icon: "some-icon".to_string(),
+        }];
 
-        let maybe_next_change = next_rain_start_or_stop(&w);
+        let maybe_next_change = next_precipitation_change(&w);
 
-        assert_eq!(maybe_next_change, None);
+        assert_eq!(maybe_next_change, PrecipitationChange::NoChange(None));
     }
 }

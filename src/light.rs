@@ -75,7 +75,7 @@ impl TimeLightSensor {
     }
 }
 
-impl Default for TimeLightSensor{
+impl Default for TimeLightSensor {
     fn default() -> Self {
         TimeLightSensor::new()
     }
@@ -177,7 +177,7 @@ impl RandomLightSensor {
     }
 }
 
-impl Default for RandomLightSensor{
+impl Default for RandomLightSensor {
     fn default() -> Self {
         RandomLightSensor::new()
     }
