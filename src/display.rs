@@ -1,7 +1,9 @@
 mod error;
 
 use crate::light::LightSensor;
-use crate::weather::{high_low_temp, next_precipitation_change, OpenWeather, PrecipitationChange};
+use crate::weather::{
+    high_low_temp, next_precipitation_change, Main, OpenWeather, PrecipitationChange,
+};
 pub use error::Error;
 
 use chrono::{DateTime, Datelike, Local, Month, Timelike};
@@ -233,19 +235,26 @@ fn rain_forecast_str(weather: &Option<OpenWeather>) -> String {
     match weather {
         Some(w) => match next_precipitation_change(w) {
             PrecipitationChange::Start(ts, p) => {
-                format!("{} starts at {:02}:00", p, ts.hour())
+                format!("{} starts at {:02}:00", printable_rain_type(p), ts.hour())
             }
             PrecipitationChange::Stop(ts, p) => {
-                format!("{} stops at {:02}:00", p, ts.hour())
+                format!("{} stops at {:02}:00", printable_rain_type(p), ts.hour())
             }
             PrecipitationChange::NoChange(maybe_p) => match maybe_p {
                 Some(p) => {
-                    format!("{} for next 24h", p)
+                    format!("{} for next 24h", printable_rain_type(p))
                 }
                 None => "No rain for next 24h".to_string(),
             },
         },
         None => "".to_string(),
+    }
+}
+
+fn printable_rain_type(p: Main) -> Main {
+    match p {
+        Main::Drizzle | Main::Thunderstorm => Main::Rain,
+        x => x,
     }
 }
 
@@ -647,7 +656,10 @@ impl<'a, T: LightSensor> Display for ILI9341Display<'a, T> {
         let second_row = format!("{} {} {:<2}", day, month, time.day());
         let (third_row, fourth_row) = match weather {
             Some(w) => (
-                format!("{}", truncate_to_characters(&w.current.weather[0].main, 7)),
+                format!(
+                    "{}",
+                    truncate_to_characters(&w.current.weather[0].main.to_string(), 7)
+                ),
                 format!("{:>3}°{}", &w.current.temp.round(), UNIT_CHAR),
             ),
             None => ("WEATHER".to_owned(), "ERR".to_owned()),
