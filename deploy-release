@@ -13,4 +13,6 @@ readonly SOURCE_PATH=./target/${TARGET_ARCH}/release/pi_clock
 cross build --release --target=${TARGET_ARCH}
 cross test --release --target=${TARGET_ARCH}
 rsync ${SOURCE_PATH} ${TARGET_USER}@${TARGET_HOST}:${TARGET_PATH}
-ssh -t ${TARGET_USER}@${TARGET_HOST} ${TARGET_PATH}
+ssh -t ${TARGET_USER}@${TARGET_HOST} ${TARGET_PATH} --version
+
+echo "Deploy successful"
