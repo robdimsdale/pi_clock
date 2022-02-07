@@ -11,7 +11,17 @@ pub fn get_weather(uri: &str, timeout: Duration) -> Result<OpenWeather, Error> {
 
     let response = agent.get(uri).call()?.into_string()?;
 
-    Ok(serde_json::from_str(&response)?)
+    let w = serde_json::from_str(&response)?;
+
+    if weather_stale(&w) {
+        return Err(error::new_stale())
+    }
+
+    Ok(w)
+}
+
+fn weather_stale(w: &OpenWeather) -> bool {
+    Local::now() - Local.timestamp(w.current.dt, 0) > chrono::Duration::minutes(30)
 }
 
 fn timestamp_before_now(ts: &DateTime<Local>) -> bool {

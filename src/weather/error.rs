@@ -22,6 +22,11 @@ pub enum ErrorKind {
     StringParse(std::io::Error),
     JSONParse(serde_json::Error),
     Transport(ureq::Error),
+    Stale,
+}
+
+pub fn new_stale() -> Error {
+    return Error{kind: ErrorKind::Stale}
 }
 
 impl fmt::Display for Error {
@@ -31,6 +36,7 @@ impl fmt::Display for Error {
             ErrorKind::StringParse(ref err) => err.fmt(f),
             ErrorKind::JSONParse(ref err) => err.fmt(f),
             ErrorKind::Transport(ref err) => err.fmt(f),
+            ErrorKind::Stale => write!(f, "stale weather"),
         }
     }
 }
