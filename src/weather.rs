@@ -14,7 +14,7 @@ pub fn get_weather(uri: &str, timeout: Duration) -> Result<OpenWeather, Error> {
     let w = serde_json::from_str(&response)?;
 
     if weather_stale(&w) {
-        return Err(error::new_stale())
+        return Err(error::new_stale());
     }
 
     Ok(w)

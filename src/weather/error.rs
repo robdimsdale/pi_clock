@@ -26,7 +26,9 @@ pub enum ErrorKind {
 }
 
 pub fn new_stale() -> Error {
-    return Error{kind: ErrorKind::Stale}
+    Error {
+        kind: ErrorKind::Stale,
+    }
 }
 
 impl fmt::Display for Error {

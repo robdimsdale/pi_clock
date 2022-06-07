@@ -370,10 +370,7 @@ mod tests {
         // Scaling from darkness to brightness
 
         assert_eq!(
-            round(
-                time_based_brightness_for_time(&(*MIN_LUX_END_TIME)),
-                0
-            ),
+            round(time_based_brightness_for_time(&(*MIN_LUX_END_TIME)), 0),
             0.
         );
 
@@ -392,20 +389,14 @@ mod tests {
             *MIN_LUX_END_TIME + (*MAX_LUX_START_TIME - *MIN_LUX_END_TIME) / 4;
 
         assert_eq!(
-            round(
-                time_based_brightness_for_time(&quarter_dark_to_bright),
-                2
-            ),
+            round(time_based_brightness_for_time(&quarter_dark_to_bright), 2),
             0.25,
         );
 
         let mid_dark_to_bright = *MIN_LUX_END_TIME + (*MAX_LUX_START_TIME - *MIN_LUX_END_TIME) / 2;
 
         assert_eq!(
-            round(
-                time_based_brightness_for_time(&mid_dark_to_bright),
-                1
-            ),
+            round(time_based_brightness_for_time(&mid_dark_to_bright), 1),
             0.5,
         );
 
