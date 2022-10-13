@@ -11,8 +11,12 @@ cargo run -- --uri='http://some-cache.local'
 
 ## Build and deploy to remote sever
 
+There is a `deploy` script provided to facilitate cross-compilation and deployment.
+
+It requires [`cross`](https://github.com/cross-rs/cross) to be installed
+
 ```sh
-TARGET_HOST=10.0.1.10 ./deploy
+./deploy --target 10.0.1.10 --release
 ```
 
 ## Raspberry Pi config

@@ -5,9 +5,10 @@ set -o pipefail
 shopt -s inherit_errexit
 
 function main() {
-  local release target_host args
+  local release target_host target_filename args
 
   target_host=""
+  target_filename="pi_clock"
   release="false"
   args=()
 
@@ -21,6 +22,11 @@ function main() {
 
       --target|-t)
         target_host="${2}"
+        shift 2
+        ;;
+
+      --target-filename)
+        target_filename="${2}"
         shift 2
         ;;
 
@@ -49,7 +55,7 @@ function main() {
   fi
 
   readonly target_user=pi
-  readonly target_path=/home/pi/pi_clock_2
+  readonly target_path="/home/pi/${target_filename}"
 
   rsync ${source_path} ${target_user}@${target_host}:${target_path}
   ssh -t ${target_user}@${target_host} ${target_path} --version
