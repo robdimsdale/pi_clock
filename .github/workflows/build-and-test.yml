@@ -21,7 +21,7 @@ jobs:
         override: true
         components: rustfmt,clippy
     - run: cargo fmt --all --check
-    - run: cargo clippy
+    - run: cargo clippy -- -D warnings
     - run: cargo test
 
   test_rpi_hw_all_features:
@@ -39,7 +39,7 @@ jobs:
       with:
         use-cross: true
         command: clippy
-        args: --target=aarch64-unknown-linux-gnu --all-features
+        args: --target=aarch64-unknown-linux-gnu --all-features -- -D warnings
     - uses: actions-rs/cargo@v1
       with:
         use-cross: true
