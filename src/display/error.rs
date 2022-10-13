@@ -25,13 +25,13 @@ pub enum ErrorKind {
     I2C(rppal::i2c::Error),
 
     #[cfg(feature = "rpi-hw")]
-    PWM(rppal::pwm::Error),
+    Pwm(rppal::pwm::Error),
 
     #[cfg(feature = "rpi-hw")]
-    SPI(rppal::spi::Error),
+    Spi(rppal::spi::Error),
 
     #[cfg(feature = "rpi-hw")]
-    GPIO(linux_embedded_hal::sysfs_gpio::Error),
+    Gpio(linux_embedded_hal::sysfs_gpio::Error),
 
     #[cfg(feature = "rpi-hw")]
     HT16K33(ht16k33::ValidationError),
@@ -49,13 +49,13 @@ impl fmt::Display for Error {
             ErrorKind::I2C(ref err) => err.fmt(f),
 
             #[cfg(feature = "rpi-hw")]
-            ErrorKind::PWM(ref err) => err.fmt(f),
+            ErrorKind::Pwm(ref err) => err.fmt(f),
 
             #[cfg(feature = "rpi-hw")]
-            ErrorKind::SPI(ref err) => err.fmt(f),
+            ErrorKind::Spi(ref err) => err.fmt(f),
 
             #[cfg(feature = "rpi-hw")]
-            ErrorKind::GPIO(ref err) => err.fmt(f),
+            ErrorKind::Gpio(ref err) => err.fmt(f),
 
             #[cfg(feature = "rpi-hw")]
             ErrorKind::HT16K33(ref err) => err.fmt(f),
@@ -87,7 +87,7 @@ impl From<rppal::i2c::Error> for Error {
 impl From<linux_embedded_hal::sysfs_gpio::Error> for Error {
     fn from(e: linux_embedded_hal::sysfs_gpio::Error) -> Self {
         Error {
-            kind: ErrorKind::GPIO(e),
+            kind: ErrorKind::Gpio(e),
         }
     }
 }
@@ -96,7 +96,7 @@ impl From<linux_embedded_hal::sysfs_gpio::Error> for Error {
 impl From<rppal::pwm::Error> for Error {
     fn from(e: rppal::pwm::Error) -> Self {
         Error {
-            kind: ErrorKind::PWM(e),
+            kind: ErrorKind::Pwm(e),
         }
     }
 }
@@ -105,7 +105,7 @@ impl From<rppal::pwm::Error> for Error {
 impl From<rppal::spi::Error> for Error {
     fn from(e: rppal::spi::Error) -> Self {
         Error {
-            kind: ErrorKind::SPI(e),
+            kind: ErrorKind::Spi(e),
         }
     }
 }

@@ -30,7 +30,7 @@ pub enum ErrorKind {
     I2C(rppal::i2c::Error),
 
     #[cfg(feature = "rpi-hw")]
-    VEML(veml6030::Error<rppal::i2c::Error>),
+    Veml(veml6030::Error<rppal::i2c::Error>),
 }
 
 impl fmt::Display for Error {
@@ -46,7 +46,7 @@ impl fmt::Display for Error {
             ErrorKind::I2C(ref err) => err.fmt(f),
 
             #[cfg(feature = "rpi-hw")]
-            ErrorKind::VEML(ref err) => write!(f, "{:?}", err),
+            ErrorKind::Veml(ref err) => write!(f, "{:?}", err),
         }
     }
 }
@@ -81,7 +81,7 @@ impl From<rppal::i2c::Error> for Error {
 impl From<veml6030::Error<rppal::i2c::Error>> for Error {
     fn from(e: veml6030::Error<rppal::i2c::Error>) -> Self {
         Error {
-            kind: ErrorKind::VEML(e),
+            kind: ErrorKind::Veml(e),
         }
     }
 }
