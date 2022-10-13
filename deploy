@@ -49,7 +49,7 @@ function main() {
   fi
 
   readonly target_user=pi
-  readonly target_path=/home/pi/pi_clock
+  readonly target_path=/home/pi/pi_clock_2
 
   rsync ${source_path} ${target_user}@${target_host}:${target_path}
   ssh -t ${target_user}@${target_host} ${target_path} --version

@@ -37,9 +37,6 @@ pub enum ErrorKind {
     HT16K33(ht16k33::ValidationError),
 
     #[cfg(feature = "rpi-hw")]
-    ILI9341(ili9341::Error<linux_embedded_hal::sysfs_gpio::Error>),
-
-    #[cfg(feature = "rpi-hw")]
     HD44780(hd44780_driver::error::Error),
 }
 
@@ -62,9 +59,6 @@ impl fmt::Display for Error {
 
             #[cfg(feature = "rpi-hw")]
             ErrorKind::HT16K33(ref err) => err.fmt(f),
-
-            #[cfg(feature = "rpi-hw")]
-            ErrorKind::ILI9341(ref err) => write!(f, "{:?}", err),
 
             #[cfg(feature = "rpi-hw")]
             ErrorKind::HD44780(ref err) => write!(f, "{:?}", err),
@@ -121,15 +115,6 @@ impl From<ht16k33::ValidationError> for Error {
     fn from(e: ht16k33::ValidationError) -> Self {
         Error {
             kind: ErrorKind::HT16K33(e),
-        }
-    }
-}
-
-#[cfg(feature = "rpi-hw")]
-impl From<ili9341::Error<linux_embedded_hal::sysfs_gpio::Error>> for Error {
-    fn from(e: ili9341::Error<linux_embedded_hal::sysfs_gpio::Error>) -> Self {
-        Error {
-            kind: ErrorKind::ILI9341(e),
         }
     }
 }

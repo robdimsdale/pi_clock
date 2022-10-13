@@ -1,5 +1,5 @@
 use log::{debug, info};
-use simplelog::{ConfigBuilder, LevelFilter, TermLogger, TerminalMode};
+use simplelog::{ColorChoice, ConfigBuilder, LevelFilter, TermLogger, TerminalMode};
 use std::time::Duration;
 use structopt::StructOpt;
 
@@ -10,8 +10,6 @@ const CONSOLE_20X4_DISPLAY_TYPE: &str = "console-20x4";
 const LCD_16X2_DISPLAY_TYPE: &str = "lcd-16x2";
 #[cfg(feature = "rpi-hw")]
 const LCD_20X4_DISPLAY_TYPE: &str = "lcd-20x4";
-#[cfg(feature = "rpi-hw")]
-const ILI9341_DISPLAY_TYPE: &str = "ili9341";
 #[cfg(feature = "rpi-hw")]
 const ALPHANUM4_DISPLAY_TYPE: &str = "alphanum4";
 #[cfg(feature = "rpi-hw")]
@@ -31,7 +29,6 @@ const VALID_DISPLAY_TYPES: &[&str] = &[
     CONSOLE_20X4_DISPLAY_TYPE,
     LCD_16X2_DISPLAY_TYPE,
     LCD_20X4_DISPLAY_TYPE,
-    ILI9341_DISPLAY_TYPE,
     ALPHANUM4_DISPLAY_TYPE,
     SEVEN_SEGMENT_4_DISPLAY_TYPE,
 ];
@@ -48,10 +45,17 @@ const VALID_LIGHT_SENSOR_TYPES: &[&str] = &[
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let log_config = ConfigBuilder::new()
-        .set_time_to_local(true)
-        .set_time_format_str("%F %T") // i.e. '2020-02-27 15:12:02'
+        .set_time_offset_to_local()
+        .unwrap_or_else(|e| e)
+        .set_time_format_rfc2822()
+        // .set_time_format_str("%F %T") // i.e. '2020-02-27 15:12:02'
         .build();
-    TermLogger::init(LevelFilter::Warn, log_config, TerminalMode::Mixed)?;
+    TermLogger::init(
+        LevelFilter::Warn,
+        log_config,
+        TerminalMode::Mixed,
+        ColorChoice::Auto,
+    )?;
     debug!("logger initialized");
 
     let args = Cli::from_args();
@@ -93,11 +97,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 #[cfg(feature = "rpi-hw")]
                 LCD_20X4_DISPLAY_TYPE => Ok(pi_clock::DisplayType::LCD20x4(
                     pi_clock::LCD20x4Display::new(&light_sensor)?,
-                )),
-
-                #[cfg(feature = "rpi-hw")]
-                ILI9341_DISPLAY_TYPE => Ok(pi_clock::DisplayType::ILI9341(
-                    pi_clock::ILI9341Display::new(&light_sensor)?,
                 )),
 
                 #[cfg(feature = "rpi-hw")]

@@ -10,18 +10,11 @@ use chrono::{DateTime, Datelike, Local, Month, Timelike};
 use num_traits::cast::FromPrimitive;
 
 #[cfg(feature = "rpi-hw")]
-use embedded_graphics::{
-    egrectangle, egtext, fonts::Font12x16, fonts::Font24x32, pixelcolor::Rgb565, prelude::*,
-    primitive_style, text_style,
-};
-#[cfg(feature = "rpi-hw")]
 use hd44780_driver::{
     bus::FourBitBus, Cursor, CursorBlink, Display as HD44780DisplaySetting, DisplayMode, HD44780,
 };
 #[cfg(feature = "rpi-hw")]
 use ht16k33::HT16K33;
-#[cfg(feature = "rpi-hw")]
-use ili9341::{Ili9341, Orientation};
 #[cfg(feature = "rpi-hw")]
 use linux_embedded_hal::sysfs_gpio::Direction;
 #[cfg(feature = "rpi-hw")]
@@ -32,8 +25,6 @@ use log::debug;
 use rppal::i2c::I2c;
 #[cfg(feature = "rpi-hw")]
 use rppal::pwm::{Channel, Polarity, Pwm};
-#[cfg(feature = "rpi-hw")]
-use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
 
 const UNIT_CHAR: char = 'F';
 
@@ -46,9 +37,6 @@ pub enum DisplayType<'a, T: LightSensor> {
     LCD16x2(LCD16x2Display<'a, T>),
     #[cfg(feature = "rpi-hw")]
     LCD20x4(LCD20x4Display<'a, T>),
-
-    #[cfg(feature = "rpi-hw")]
-    ILI9341(ILI9341Display<'a, T>),
 
     #[cfg(feature = "rpi-hw")]
     AlphaNum4(AlphaNum4Display<'a, T>),
@@ -74,9 +62,6 @@ impl<'a, T: LightSensor> DisplayType<'a, T> {
             Self::LCD16x2(display) => display.print(time, current_state_index, weather),
             #[cfg(feature = "rpi-hw")]
             Self::LCD20x4(display) => display.print(time, current_state_index, weather),
-
-            #[cfg(feature = "rpi-hw")]
-            Self::ILI9341(display) => display.print(time, current_state_index, weather),
 
             #[cfg(feature = "rpi-hw")]
             Self::AlphaNum4(display) => display.print(time, current_state_index, weather),
@@ -574,129 +559,6 @@ fn str_to_lcd_bytes(s: &str) -> Vec<u8> {
         .iter()
         .map(|&i| if i == '#' as u8 { 0xDF } else { i }) // 0xDF is the bytecode for the ° symbol
         .collect::<Vec<u8>>()
-}
-
-#[cfg(feature = "rpi-hw")]
-pub struct ILI9341Display<'a, T: LightSensor> {
-    display: Ili9341<
-        display_interface_spi::SPIInterface<Spi, linux_embedded_hal::Pin, linux_embedded_hal::Pin>,
-        linux_embedded_hal::Pin,
-    >,
-    brightness_pwm: Pwm,
-    light_sensor: &'a T,
-}
-
-#[cfg(feature = "rpi-hw")]
-impl<'a, T: LightSensor> ILI9341Display<'a, T> {
-    pub fn new(light_sensor: &'a T) -> Result<Self, Error> {
-        // Using BCM numbers
-        // i.e. pin 0 corresponds to wiringpi 30 and physical 27
-
-        let default_brightness = 1.0;
-        // pwm0 is pin 18
-        let pwm0 = Pwm::with_frequency(
-            Channel::Pwm0,
-            20000.0,
-            default_brightness,
-            Polarity::Normal,
-            false,
-        )?;
-
-        pwm0.enable()?;
-
-        let rs = Pin::new(24);
-        rs.export()?;
-        rs.set_direction(Direction::Low)?;
-
-        let cs = Pin::new(21); // TODO: can't use the CE0 pin in the display as it is already used by the SPI variable.
-        cs.export()?;
-        cs.set_direction(Direction::Low)?;
-
-        let dc = Pin::new(25);
-        dc.export()?;
-        dc.set_direction(Direction::Low)?;
-
-        let spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, 16_000_000, Mode::Mode0)?;
-
-        let spi_di = display_interface_spi::SPIInterface::new(spi, dc, cs);
-
-        let mut display = Ili9341::new(spi_di, rs, &mut Delay)?;
-
-        display.set_orientation(Orientation::LandscapeFlipped)?;
-
-        Ok(ILI9341Display {
-            display: display,
-            brightness_pwm: pwm0,
-            light_sensor: light_sensor,
-        })
-    }
-
-    fn set_brightness(&mut self, brightness: f32) -> Result<(), Error> {
-        debug!("LED brightness: {}", brightness);
-
-        self.brightness_pwm.set_duty_cycle(brightness as f64)?;
-
-        Ok(())
-    }
-}
-
-#[cfg(feature = "rpi-hw")]
-impl<'a, T: LightSensor> Display for ILI9341Display<'a, T> {
-    fn print(
-        &mut self,
-        time: &DateTime<Local>,
-        _: u32,
-        weather: &Option<OpenWeather>,
-    ) -> Result<(), Error> {
-        let day = &time.weekday().to_string()[0..3];
-        let month = &mmm_from_time(time);
-
-        let first_row = format!("{:02}:{:02}", time.hour(), time.minute());
-
-        let second_row = format!("{} {} {:<2}", day, month, time.day());
-        let (third_row, fourth_row) = match weather {
-            Some(w) => (
-                format!(
-                    "{}",
-                    truncate_to_characters(&w.current.weather[0].main.to_string(), 7)
-                ),
-                format!("{:>3}°{}", &w.current.temp.round(), UNIT_CHAR),
-            ),
-            None => ("WEATHER".to_owned(), "ERR".to_owned()),
-        };
-
-        let text = format!("{}\n{}\n{}", second_row, third_row, fourth_row);
-
-        let background = egrectangle!(
-            top_left = (0, 0),
-            bottom_right = (320, 240),
-            style = primitive_style!(fill_color = Rgb565::BLACK),
-        );
-
-        let time_text = egtext!(
-            text = &first_row,
-            top_left = (20, 16),
-            style = text_style!(font = Font24x32, text_color = Rgb565::RED),
-        );
-
-        let other_text = egtext!(
-            text = &text,
-            top_left = (20, 48),
-            style = text_style!(font = Font12x16, text_color = Rgb565::RED),
-        );
-
-        background.draw(&mut self.display)?;
-        time_text.draw(&mut self.display)?;
-        other_text.draw(&mut self.display)?;
-
-        let brightness = self.light_sensor.read_light_normalized()?;
-        let min_brightness = 0.01;
-        let brightness = brightness.max(min_brightness);
-
-        self.set_brightness(brightness)?;
-
-        Ok(())
-    }
 }
 
 #[cfg(feature = "rpi-hw")]

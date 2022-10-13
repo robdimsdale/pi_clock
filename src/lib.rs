@@ -6,9 +6,7 @@ mod weather;
 use chrono::{Local, Timelike};
 pub use config::Config;
 #[cfg(feature = "rpi-hw")]
-pub use display::{
-    AlphaNum4Display, ILI9341Display, LCD16x2Display, LCD20x4Display, SevenSegment4Display,
-};
+pub use display::{AlphaNum4Display, LCD16x2Display, LCD20x4Display, SevenSegment4Display};
 pub use display::{Console16x2Display, Console20x4Display, Display, DisplayType};
 #[cfg(feature = "rpi-hw")]
 pub use light::VEML7700LightSensor;
