@@ -11,7 +11,7 @@ env:
 
 jobs:
   test_default:
-    runs_on: ubuntu-2204
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
     - uses: actions-rs/toolchain@v1
@@ -25,7 +25,7 @@ jobs:
     - run: cargo test
 
   test_rpi_hw_all_features:
-    runs_on: ubuntu-2204
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
     - uses: actions-rs/toolchain@v1
