@@ -26,11 +26,11 @@ use lazy_static::*;
 use rand::prelude::*;
 use std::sync::Mutex;
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 use log::debug;
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 use rppal::i2c::I2c;
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 use veml6030::{SlaveAddr, Veml6030};
 
 const MAX_LUX: f32 = 1.0;
@@ -47,7 +47,7 @@ lazy_static! {
 pub enum LightSensorType {
     Random(RandomLightSensor),
     Time(TimeLightSensor),
-    #[cfg(target_arch = "arm")]
+    #[cfg(feature = "rpi-hw")]
     VEML7700(VEML7700LightSensor), // TODO: consider add caching here to avoid lots of mutexes
 }
 
@@ -56,7 +56,7 @@ impl LightSensor for LightSensorType {
         match &self {
             Self::Random(sensor) => sensor.read_light_normalized(),
             Self::Time(sensor) => sensor.read_light_normalized(),
-            #[cfg(target_arch = "arm")]
+            #[cfg(feature = "rpi-hw")]
             Self::VEML7700(sensor) => sensor.read_light_normalized(),
         }
     }
@@ -137,12 +137,12 @@ fn time_based_brightness_for_time(t: &NaiveTime) -> f32 {
     panic!("Bad time bounds!")
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 pub struct VEML7700LightSensor {
     sensor: Mutex<Veml6030<I2c>>,
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl VEML7700LightSensor {
     pub fn new() -> Result<Self, Error> {
         let i2c = I2c::new()?;
@@ -155,7 +155,7 @@ impl VEML7700LightSensor {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl LightSensor for VEML7700LightSensor {
     fn read_light_normalized(&self) -> Result<f32, Error> {
         let lux = self.sensor.lock()?.read_lux()?;

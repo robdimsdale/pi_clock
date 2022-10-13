@@ -6,26 +6,26 @@ use structopt::StructOpt;
 const CONSOLE_16X2_DISPLAY_TYPE: &str = "console-16x2";
 const CONSOLE_20X4_DISPLAY_TYPE: &str = "console-20x4";
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 const LCD_16X2_DISPLAY_TYPE: &str = "lcd-16x2";
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 const LCD_20X4_DISPLAY_TYPE: &str = "lcd-20x4";
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 const ILI9341_DISPLAY_TYPE: &str = "ili9341";
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 const ALPHANUM4_DISPLAY_TYPE: &str = "alphanum4";
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 const SEVEN_SEGMENT_4_DISPLAY_TYPE: &str = "seven_segment4";
 
 const RANDOM_LIGHT_SENSOR_TYPE: &str = "random";
 const TIME_LIGHT_SENSOR_TYPE: &str = "time";
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 const VEML7700_LIGHT_SENSOR_TYPE: &str = "veml7700";
 
-#[cfg(not(target_arch = "arm"))]
+#[cfg(not(feature = "rpi-hw"))]
 const VALID_DISPLAY_TYPES: &[&str] = &[CONSOLE_16X2_DISPLAY_TYPE, CONSOLE_20X4_DISPLAY_TYPE];
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 const VALID_DISPLAY_TYPES: &[&str] = &[
     CONSOLE_16X2_DISPLAY_TYPE,
     CONSOLE_20X4_DISPLAY_TYPE,
@@ -36,10 +36,10 @@ const VALID_DISPLAY_TYPES: &[&str] = &[
     SEVEN_SEGMENT_4_DISPLAY_TYPE,
 ];
 
-#[cfg(not(target_arch = "arm"))]
+#[cfg(not(feature = "rpi-hw"))]
 const VALID_LIGHT_SENSOR_TYPES: &[&str] = &[RANDOM_LIGHT_SENSOR_TYPE, TIME_LIGHT_SENSOR_TYPE];
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 const VALID_LIGHT_SENSOR_TYPES: &[&str] = &[
     RANDOM_LIGHT_SENSOR_TYPE,
     TIME_LIGHT_SENSOR_TYPE,
@@ -63,7 +63,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         TIME_LIGHT_SENSOR_TYPE => pi_clock::LightSensorType::Time(pi_clock::TimeLightSensor::new()),
 
-        #[cfg(target_arch = "arm")]
+        #[cfg(feature = "rpi-hw")]
         VEML7700_LIGHT_SENSOR_TYPE => {
             pi_clock::LightSensorType::VEML7700(pi_clock::VEML7700LightSensor::new()?)
         }
@@ -85,27 +85,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     pi_clock::Console20x4Display::new(&light_sensor),
                 )),
 
-                #[cfg(target_arch = "arm")]
+                #[cfg(feature = "rpi-hw")]
                 LCD_16X2_DISPLAY_TYPE => Ok(pi_clock::DisplayType::LCD16x2(
                     pi_clock::LCD16x2Display::new(&light_sensor)?,
                 )),
 
-                #[cfg(target_arch = "arm")]
+                #[cfg(feature = "rpi-hw")]
                 LCD_20X4_DISPLAY_TYPE => Ok(pi_clock::DisplayType::LCD20x4(
                     pi_clock::LCD20x4Display::new(&light_sensor)?,
                 )),
 
-                #[cfg(target_arch = "arm")]
+                #[cfg(feature = "rpi-hw")]
                 ILI9341_DISPLAY_TYPE => Ok(pi_clock::DisplayType::ILI9341(
                     pi_clock::ILI9341Display::new(&light_sensor)?,
                 )),
 
-                #[cfg(target_arch = "arm")]
+                #[cfg(feature = "rpi-hw")]
                 ALPHANUM4_DISPLAY_TYPE => Ok(pi_clock::DisplayType::AlphaNum4(
                     pi_clock::AlphaNum4Display::new(&light_sensor)?,
                 )),
 
-                #[cfg(target_arch = "arm")]
+                #[cfg(feature = "rpi-hw")]
                 SEVEN_SEGMENT_4_DISPLAY_TYPE => Ok(pi_clock::DisplayType::SevenSegment4(
                     pi_clock::SevenSegment4Display::new(&light_sensor)?,
                 )),

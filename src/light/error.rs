@@ -1,5 +1,5 @@
 use rand::prelude::*;
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 use rppal::i2c::I2c;
 use std::fmt;
 use std::sync::{MutexGuard, PoisonError};
@@ -26,10 +26,10 @@ pub enum ErrorKind {
 
     LockLightSensor,
 
-    #[cfg(target_arch = "arm")]
+    #[cfg(feature = "rpi-hw")]
     I2C(rppal::i2c::Error),
 
-    #[cfg(target_arch = "arm")]
+    #[cfg(feature = "rpi-hw")]
     VEML(veml6030::Error<rppal::i2c::Error>),
 }
 
@@ -42,10 +42,10 @@ impl fmt::Display for Error {
                 write!(f, "a task failed while holding Light Sensor lock")
             }
 
-            #[cfg(target_arch = "arm")]
+            #[cfg(feature = "rpi-hw")]
             ErrorKind::I2C(ref err) => err.fmt(f),
 
-            #[cfg(target_arch = "arm")]
+            #[cfg(feature = "rpi-hw")]
             ErrorKind::VEML(ref err) => write!(f, "{:?}", err),
         }
     }
@@ -59,7 +59,7 @@ impl From<PoisonError<MutexGuard<'_, ThreadRng>>> for Error {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl From<PoisonError<MutexGuard<'_, veml6030::Veml6030<I2c>>>> for Error {
     fn from(_: PoisonError<MutexGuard<'_, veml6030::Veml6030<I2c>>>) -> Self {
         Error {
@@ -68,7 +68,7 @@ impl From<PoisonError<MutexGuard<'_, veml6030::Veml6030<I2c>>>> for Error {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl From<rppal::i2c::Error> for Error {
     fn from(e: rppal::i2c::Error) -> Self {
         Error {
@@ -77,7 +77,7 @@ impl From<rppal::i2c::Error> for Error {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl From<veml6030::Error<rppal::i2c::Error>> for Error {
     fn from(e: veml6030::Error<rppal::i2c::Error>) -> Self {
         Error {

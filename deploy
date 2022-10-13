@@ -1,18 +1,60 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-set -o errexit
-set -o nounset
+set -eu
 set -o pipefail
-set -o xtrace
+shopt -s inherit_errexit
 
-readonly TARGET_USER=pi
-readonly TARGET_PATH=/home/pi/pi_clock
-readonly TARGET_ARCH=aarch64-unknown-linux-gnu
-readonly SOURCE_PATH=./target/${TARGET_ARCH}/debug/pi_clock
+function main() {
+  local release target_host args
 
-cross build --target=${TARGET_ARCH}
-cross test --target=${TARGET_ARCH}
-rsync ${SOURCE_PATH} ${TARGET_USER}@${TARGET_HOST}:${TARGET_PATH}
-ssh -t ${TARGET_USER}@${TARGET_HOST} ${TARGET_PATH} --version
+  target_host=""
+  release="false"
+  args=()
 
-echo "Deploy successful"
+  while [[ "${#}" != 0 ]]; do
+    case "${1}" in
+      --release)
+        release="true"
+        args+=("--release")
+        shift 1
+        ;;
+
+      --target|-t)
+        target_host="${2}"
+        shift 2
+        ;;
+
+      "")
+        # add all unrecognized arguments to list
+        args+=("${1}")
+        shift 1
+        ;;
+    esac
+  done
+
+  if [[ -z "${target_host}" ]]; then
+      echo "Error: must provide target host with --target/-t"
+      exit 1
+  fi
+
+  readonly target_arch=aarch64-unknown-linux-gnu
+
+  cross build --target="${target_arch}" --features="rpi-hw" "${args[@]}"
+  cross test --target="${target_arch}" --features="rpi-hw" "${args[@]}"
+
+  if [[ "${release}" == "true" ]]; then
+    readonly source_path="./target/${target_arch}/release/pi_clock"
+  else
+    readonly source_path="./target/${target_arch}/debug/pi_clock"
+  fi
+
+  readonly target_user=pi
+  readonly target_path=/home/pi/pi_clock
+
+  rsync ${source_path} ${target_user}@${target_host}:${target_path}
+  ssh -t ${target_user}@${target_host} ${target_path} --version
+
+  echo "Deploy successful"
+}
+
+main "${@:-}"

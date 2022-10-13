@@ -21,25 +21,25 @@ impl Error {
 pub enum ErrorKind {
     LightSensor(LightError),
 
-    #[cfg(target_arch = "arm")]
+    #[cfg(feature = "rpi-hw")]
     I2C(rppal::i2c::Error),
 
-    #[cfg(target_arch = "arm")]
+    #[cfg(feature = "rpi-hw")]
     PWM(rppal::pwm::Error),
 
-    #[cfg(target_arch = "arm")]
+    #[cfg(feature = "rpi-hw")]
     SPI(rppal::spi::Error),
 
-    #[cfg(target_arch = "arm")]
+    #[cfg(feature = "rpi-hw")]
     GPIO(linux_embedded_hal::sysfs_gpio::Error),
 
-    #[cfg(target_arch = "arm")]
+    #[cfg(feature = "rpi-hw")]
     HT16K33(ht16k33::ValidationError),
 
-    #[cfg(target_arch = "arm")]
+    #[cfg(feature = "rpi-hw")]
     ILI9341(ili9341::Error<linux_embedded_hal::sysfs_gpio::Error>),
 
-    #[cfg(target_arch = "arm")]
+    #[cfg(feature = "rpi-hw")]
     HD44780(hd44780_driver::error::Error),
 }
 
@@ -48,25 +48,25 @@ impl fmt::Display for Error {
         match self.kind {
             ErrorKind::LightSensor(ref err) => err.fmt(f),
 
-            #[cfg(target_arch = "arm")]
+            #[cfg(feature = "rpi-hw")]
             ErrorKind::I2C(ref err) => err.fmt(f),
 
-            #[cfg(target_arch = "arm")]
+            #[cfg(feature = "rpi-hw")]
             ErrorKind::PWM(ref err) => err.fmt(f),
 
-            #[cfg(target_arch = "arm")]
+            #[cfg(feature = "rpi-hw")]
             ErrorKind::SPI(ref err) => err.fmt(f),
 
-            #[cfg(target_arch = "arm")]
+            #[cfg(feature = "rpi-hw")]
             ErrorKind::GPIO(ref err) => err.fmt(f),
 
-            #[cfg(target_arch = "arm")]
+            #[cfg(feature = "rpi-hw")]
             ErrorKind::HT16K33(ref err) => err.fmt(f),
 
-            #[cfg(target_arch = "arm")]
+            #[cfg(feature = "rpi-hw")]
             ErrorKind::ILI9341(ref err) => write!(f, "{:?}", err),
 
-            #[cfg(target_arch = "arm")]
+            #[cfg(feature = "rpi-hw")]
             ErrorKind::HD44780(ref err) => write!(f, "{:?}", err),
         }
     }
@@ -80,7 +80,7 @@ impl From<LightError> for Error {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl From<rppal::i2c::Error> for Error {
     fn from(e: rppal::i2c::Error) -> Self {
         Error {
@@ -89,7 +89,7 @@ impl From<rppal::i2c::Error> for Error {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl From<linux_embedded_hal::sysfs_gpio::Error> for Error {
     fn from(e: linux_embedded_hal::sysfs_gpio::Error) -> Self {
         Error {
@@ -98,7 +98,7 @@ impl From<linux_embedded_hal::sysfs_gpio::Error> for Error {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl From<rppal::pwm::Error> for Error {
     fn from(e: rppal::pwm::Error) -> Self {
         Error {
@@ -107,7 +107,7 @@ impl From<rppal::pwm::Error> for Error {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl From<rppal::spi::Error> for Error {
     fn from(e: rppal::spi::Error) -> Self {
         Error {
@@ -116,7 +116,7 @@ impl From<rppal::spi::Error> for Error {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl From<ht16k33::ValidationError> for Error {
     fn from(e: ht16k33::ValidationError) -> Self {
         Error {
@@ -125,7 +125,7 @@ impl From<ht16k33::ValidationError> for Error {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl From<ili9341::Error<linux_embedded_hal::sysfs_gpio::Error>> for Error {
     fn from(e: ili9341::Error<linux_embedded_hal::sysfs_gpio::Error>) -> Self {
         Error {
@@ -134,7 +134,7 @@ impl From<ili9341::Error<linux_embedded_hal::sysfs_gpio::Error>> for Error {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl From<hd44780_driver::error::Error> for Error {
     fn from(e: hd44780_driver::error::Error) -> Self {
         Error {

@@ -9,30 +9,30 @@ pub use error::Error;
 use chrono::{DateTime, Datelike, Local, Month, Timelike};
 use num_traits::cast::FromPrimitive;
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 use embedded_graphics::{
     egrectangle, egtext, fonts::Font12x16, fonts::Font24x32, pixelcolor::Rgb565, prelude::*,
     primitive_style, text_style,
 };
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 use hd44780_driver::{
     bus::FourBitBus, Cursor, CursorBlink, Display as HD44780DisplaySetting, DisplayMode, HD44780,
 };
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 use ht16k33::HT16K33;
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 use ili9341::{Ili9341, Orientation};
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 use linux_embedded_hal::sysfs_gpio::Direction;
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 use linux_embedded_hal::{Delay, Pin};
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 use log::debug;
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 use rppal::i2c::I2c;
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 use rppal::pwm::{Channel, Polarity, Pwm};
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
 
 const UNIT_CHAR: char = 'F';
@@ -42,18 +42,18 @@ pub enum DisplayType<'a, T: LightSensor> {
     Console16x2(Console16x2Display<'a, T>),
     Console20x4(Console20x4Display<'a, T>),
 
-    #[cfg(target_arch = "arm")]
+    #[cfg(feature = "rpi-hw")]
     LCD16x2(LCD16x2Display<'a, T>),
-    #[cfg(target_arch = "arm")]
+    #[cfg(feature = "rpi-hw")]
     LCD20x4(LCD20x4Display<'a, T>),
 
-    #[cfg(target_arch = "arm")]
+    #[cfg(feature = "rpi-hw")]
     ILI9341(ILI9341Display<'a, T>),
 
-    #[cfg(target_arch = "arm")]
+    #[cfg(feature = "rpi-hw")]
     AlphaNum4(AlphaNum4Display<'a, T>),
 
-    #[cfg(target_arch = "arm")]
+    #[cfg(feature = "rpi-hw")]
     SevenSegment4(SevenSegment4Display<'a, T>),
 
     Composite(&'a mut [DisplayType<'a, T>]),
@@ -70,18 +70,18 @@ impl<'a, T: LightSensor> DisplayType<'a, T> {
             Self::Console16x2(display) => display.print(time, current_state_index, weather),
             Self::Console20x4(display) => display.print(time, current_state_index, weather),
 
-            #[cfg(target_arch = "arm")]
+            #[cfg(feature = "rpi-hw")]
             Self::LCD16x2(display) => display.print(time, current_state_index, weather),
-            #[cfg(target_arch = "arm")]
+            #[cfg(feature = "rpi-hw")]
             Self::LCD20x4(display) => display.print(time, current_state_index, weather),
 
-            #[cfg(target_arch = "arm")]
+            #[cfg(feature = "rpi-hw")]
             Self::ILI9341(display) => display.print(time, current_state_index, weather),
 
-            #[cfg(target_arch = "arm")]
+            #[cfg(feature = "rpi-hw")]
             Self::AlphaNum4(display) => display.print(time, current_state_index, weather),
 
-            #[cfg(target_arch = "arm")]
+            #[cfg(feature = "rpi-hw")]
             Self::SevenSegment4(display) => display.print(time, current_state_index, weather),
 
             Self::Composite(displays) => {
@@ -282,7 +282,7 @@ fn mmm_from_time(time: &DateTime<Local>) -> String {
         .to_owned()
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 pub struct LCD16x2Display<'a, T: LightSensor> {
     lcd: HD44780<
         FourBitBus<
@@ -300,7 +300,7 @@ pub struct LCD16x2Display<'a, T: LightSensor> {
     light_sensor: &'a T,
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl<'a, T: LightSensor> LCD16x2Display<'a, T> {
     pub fn new(light_sensor: &'a T) -> Result<Self, Error> {
         // Using BCM numbers
@@ -378,7 +378,7 @@ impl<'a, T: LightSensor> LCD16x2Display<'a, T> {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl<'a, T: LightSensor> Display for LCD16x2Display<'a, T> {
     fn print(
         &mut self,
@@ -414,7 +414,7 @@ impl<'a, T: LightSensor> Display for LCD16x2Display<'a, T> {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 pub struct LCD20x4Display<'a, T: LightSensor> {
     lcd: HD44780<
         FourBitBus<
@@ -432,7 +432,7 @@ pub struct LCD20x4Display<'a, T: LightSensor> {
     light_sensor: &'a T,
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl<'a, T: LightSensor> LCD20x4Display<'a, T> {
     pub fn new(light_sensor: &'a T) -> Result<Self, Error> {
         // Using BCM numbers
@@ -510,7 +510,7 @@ impl<'a, T: LightSensor> LCD20x4Display<'a, T> {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl<'a, T: LightSensor> Display for LCD20x4Display<'a, T> {
     fn print(
         &mut self,
@@ -567,7 +567,7 @@ impl<'a, T: LightSensor> Display for LCD20x4Display<'a, T> {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 fn str_to_lcd_bytes(s: &str) -> Vec<u8> {
     s.replace("°", "#") // Pick a character that we know won't appear in the string elsewhere
         .as_bytes()
@@ -576,7 +576,7 @@ fn str_to_lcd_bytes(s: &str) -> Vec<u8> {
         .collect::<Vec<u8>>()
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 pub struct ILI9341Display<'a, T: LightSensor> {
     display: Ili9341<
         display_interface_spi::SPIInterface<Spi, linux_embedded_hal::Pin, linux_embedded_hal::Pin>,
@@ -586,7 +586,7 @@ pub struct ILI9341Display<'a, T: LightSensor> {
     light_sensor: &'a T,
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl<'a, T: LightSensor> ILI9341Display<'a, T> {
     pub fn new(light_sensor: &'a T) -> Result<Self, Error> {
         // Using BCM numbers
@@ -640,7 +640,7 @@ impl<'a, T: LightSensor> ILI9341Display<'a, T> {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl<'a, T: LightSensor> Display for ILI9341Display<'a, T> {
     fn print(
         &mut self,
@@ -699,14 +699,14 @@ impl<'a, T: LightSensor> Display for ILI9341Display<'a, T> {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 pub struct AlphaNum4Display<'a, T: LightSensor> {
     ht16k33: HT16K33<I2c>,
 
     light_sensor: &'a T,
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl<'a, T: LightSensor> AlphaNum4Display<'a, T> {
     pub fn new(light_sensor: &'a T) -> Result<Self, Error> {
         // The I2C device address.
@@ -742,7 +742,7 @@ impl<'a, T: LightSensor> AlphaNum4Display<'a, T> {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl<'a, T: LightSensor> Display for AlphaNum4Display<'a, T> {
     fn print(
         &mut self,
@@ -794,14 +794,14 @@ impl<'a, T: LightSensor> Display for AlphaNum4Display<'a, T> {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 pub struct SevenSegment4Display<'a, T: LightSensor> {
     ht16k33: HT16K33<I2c>,
 
     light_sensor: &'a T,
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl<'a, T: LightSensor> SevenSegment4Display<'a, T> {
     pub fn new(light_sensor: &'a T) -> Result<Self, Error> {
         // The I2C device address.
@@ -834,7 +834,7 @@ impl<'a, T: LightSensor> SevenSegment4Display<'a, T> {
     }
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "rpi-hw")]
 impl<'a, T: LightSensor> Display for SevenSegment4Display<'a, T> {
     fn print(
         &mut self,
