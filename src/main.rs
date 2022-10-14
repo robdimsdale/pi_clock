@@ -79,34 +79,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut displays = args
         .display_types
         .iter()
-        .map(|d| -> Result<pi_clock::DisplayType<_>, pi_clock::Error> {
+        .map(|d| -> Result<pi_clock::DisplayType, pi_clock::Error> {
             match d.as_str() {
                 CONSOLE_16X2_DISPLAY_TYPE => Ok(pi_clock::DisplayType::Console16x2(
-                    pi_clock::Console16x2Display::new(&light_sensor),
+                    pi_clock::Console16x2Display::new(),
                 )),
 
                 CONSOLE_20X4_DISPLAY_TYPE => Ok(pi_clock::DisplayType::Console20x4(
-                    pi_clock::Console20x4Display::new(&light_sensor),
+                    pi_clock::Console20x4Display::new(),
                 )),
 
                 #[cfg(feature = "rpi-hw")]
                 LCD_16X2_DISPLAY_TYPE => Ok(pi_clock::DisplayType::LCD16x2(
-                    pi_clock::LCD16x2Display::new(&light_sensor)?,
+                    pi_clock::LCD16x2Display::new()?,
                 )),
 
                 #[cfg(feature = "rpi-hw")]
                 LCD_20X4_DISPLAY_TYPE => Ok(pi_clock::DisplayType::LCD20x4(
-                    pi_clock::LCD20x4Display::new(&light_sensor)?,
+                    pi_clock::LCD20x4Display::new()?,
                 )),
 
                 #[cfg(feature = "rpi-hw")]
                 ALPHANUM4_DISPLAY_TYPE => Ok(pi_clock::DisplayType::AlphaNum4(
-                    pi_clock::AlphaNum4Display::new(&light_sensor)?,
+                    pi_clock::AlphaNum4Display::new()?,
                 )),
 
                 #[cfg(feature = "rpi-hw")]
                 SEVEN_SEGMENT_4_DISPLAY_TYPE => Ok(pi_clock::DisplayType::SevenSegment4(
-                    pi_clock::SevenSegment4Display::new(&light_sensor)?,
+                    pi_clock::SevenSegment4Display::new()?,
                 )),
                 _ => {
                     panic!("Unrecognized display type: {}", d)
@@ -129,7 +129,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ),
     };
 
-    pi_clock::run(&config, &mut display)?;
+    pi_clock::run(&config, &mut display, &light_sensor)?;
 
     Ok(())
 }

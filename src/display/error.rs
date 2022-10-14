@@ -1,4 +1,3 @@
-use crate::light::Error as LightError;
 use std::fmt;
 
 #[derive(Debug)]
@@ -19,8 +18,6 @@ impl Error {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ErrorKind {
-    LightSensor(LightError),
-
     #[cfg(feature = "rpi-hw")]
     I2C(rppal::i2c::Error),
 
@@ -40,11 +37,17 @@ pub enum ErrorKind {
     HD44780(hd44780_driver::error::Error),
 }
 
+#[cfg(not(feature = "rpi-hw"))]
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+#[cfg(feature = "rpi-hw")]
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.kind {
-            ErrorKind::LightSensor(ref err) => err.fmt(f),
-
             #[cfg(feature = "rpi-hw")]
             ErrorKind::I2C(ref err) => err.fmt(f),
 
@@ -62,14 +65,6 @@ impl fmt::Display for Error {
 
             #[cfg(feature = "rpi-hw")]
             ErrorKind::HD44780(ref err) => write!(f, "{:?}", err),
-        }
-    }
-}
-
-impl From<LightError> for Error {
-    fn from(e: LightError) -> Self {
-        Error {
-            kind: ErrorKind::LightSensor(e),
         }
     }
 }
