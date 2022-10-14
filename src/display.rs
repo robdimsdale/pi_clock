@@ -1,6 +1,5 @@
 mod error;
 
-use crate::light::LightSensor;
 use crate::weather::{
     high_low_temp, next_precipitation_change, Main, OpenWeather, PrecipitationChange,
 };
@@ -29,49 +28,52 @@ use rppal::pwm::{Channel, Polarity, Pwm};
 const UNIT_CHAR: char = 'F';
 
 // To enable heterogenous abstractions over multiple display types
-pub enum DisplayType<'a, T: LightSensor> {
-    Console16x2(Console16x2Display<'a, T>),
-    Console20x4(Console20x4Display<'a, T>),
+pub enum DisplayType<'a> {
+    Console16x2(Console16x2Display),
+    Console20x4(Console20x4Display),
 
     #[cfg(feature = "rpi-hw")]
-    LCD16x2(LCD16x2Display<'a, T>),
+    LCD16x2(LCD16x2Display),
     #[cfg(feature = "rpi-hw")]
-    LCD20x4(LCD20x4Display<'a, T>),
+    LCD20x4(LCD20x4Display),
 
     #[cfg(feature = "rpi-hw")]
-    AlphaNum4(AlphaNum4Display<'a, T>),
+    AlphaNum4(AlphaNum4Display),
 
     #[cfg(feature = "rpi-hw")]
-    SevenSegment4(SevenSegment4Display<'a, T>),
+    SevenSegment4(SevenSegment4Display),
 
-    Composite(&'a mut [DisplayType<'a, T>]),
+    Composite(&'a mut [DisplayType<'a>]),
 }
 
-impl<'a, T: LightSensor> DisplayType<'a, T> {
+impl DisplayType<'_> {
     pub fn print(
         &mut self,
         time: &DateTime<Local>,
         current_state_index: u32,
         weather: &Option<OpenWeather>,
+        light: f32,
     ) -> Result<(), Error> {
         match &mut *self {
-            Self::Console16x2(display) => display.print(time, current_state_index, weather),
-            Self::Console20x4(display) => display.print(time, current_state_index, weather),
+            Self::Console16x2(display) => display.print(time, current_state_index, weather, light),
+            Self::Console20x4(display) => display.print(time, current_state_index, weather, light),
 
             #[cfg(feature = "rpi-hw")]
-            Self::LCD16x2(display) => display.print(time, current_state_index, weather),
+            Self::LCD16x2(display) => display.print(time, current_state_index, weather, light),
             #[cfg(feature = "rpi-hw")]
-            Self::LCD20x4(display) => display.print(time, current_state_index, weather),
+            Self::LCD20x4(display) => display.print(time, current_state_index, weather, light),
 
             #[cfg(feature = "rpi-hw")]
-            Self::AlphaNum4(display) => display.print(time, current_state_index, weather),
+            Self::AlphaNum4(display) => display.print(time, current_state_index, weather, light),
 
             #[cfg(feature = "rpi-hw")]
-            Self::SevenSegment4(display) => display.print(time, current_state_index, weather),
+            Self::SevenSegment4(display) => {
+                display.print(time, current_state_index, weather, light)
+            }
 
             Self::Composite(displays) => {
                 for d in displays.iter_mut() {
-                    d.print(time, current_state_index, weather)?;
+                    d.print(time, current_state_index, weather, light)?;
                 }
                 Ok(())
             }
@@ -85,25 +87,31 @@ pub trait Display {
         time: &DateTime<Local>,
         current_state_index: u32,
         weather: &Option<OpenWeather>,
+        light: f32,
     ) -> Result<(), Error>;
 }
 
-pub struct Console16x2Display<'a, T: LightSensor> {
-    light_sensor: &'a T,
-}
+pub struct Console16x2Display {}
 
-impl<'a, T: LightSensor> Console16x2Display<'a, T> {
-    pub fn new(light_sensor: &'a T) -> Console16x2Display<'a, T> {
-        Console16x2Display { light_sensor }
+impl Console16x2Display {
+    pub fn new() -> Console16x2Display {
+        Console16x2Display {}
     }
 }
 
-impl<'a, T: LightSensor> Display for Console16x2Display<'a, T> {
+impl Default for Console16x2Display {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Display for Console16x2Display {
     fn print(
         &mut self,
         time: &DateTime<Local>,
         _: u32,
         weather: &Option<OpenWeather>,
+        light: f32,
     ) -> Result<(), Error> {
         let (weather_desc, temp_str) = console_weather_and_temp_str(weather, 3, 7);
 
@@ -116,10 +124,7 @@ impl<'a, T: LightSensor> Display for Console16x2Display<'a, T> {
         println!("|{}|", second_row);
         println!("-{}-", "-".repeat(16));
 
-        println!(
-            "Current light: {}",
-            self.light_sensor.read_light_normalized()?
-        );
+        println!("Current light: {}", light);
 
         Ok(())
     }
@@ -165,22 +170,27 @@ fn console_weather_and_temp_str(
     }
 }
 
-pub struct Console20x4Display<'a, T: LightSensor> {
-    light_sensor: &'a T,
-}
+pub struct Console20x4Display {}
 
-impl<'a, T: LightSensor> Console20x4Display<'a, T> {
-    pub fn new(light_sensor: &'a T) -> Console20x4Display<'a, T> {
-        Console20x4Display { light_sensor }
+impl Console20x4Display {
+    pub fn new() -> Console20x4Display {
+        Console20x4Display {}
     }
 }
 
-impl<'a, T: LightSensor> Display for Console20x4Display<'a, T> {
+impl Default for Console20x4Display {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Display for Console20x4Display {
     fn print(
         &mut self,
         time: &DateTime<Local>,
         current_state_index: u32,
         weather: &Option<OpenWeather>,
+        light: f32,
     ) -> Result<(), Error> {
         let (weather_desc, temp_str) = console_weather_and_temp_str(weather, 3, 14);
 
@@ -207,10 +217,7 @@ impl<'a, T: LightSensor> Display for Console20x4Display<'a, T> {
         println!("|{}|", fourth_row);
         println!("-{}-", "-".repeat(20));
 
-        println!(
-            "Current light: {}",
-            self.light_sensor.read_light_normalized()?
-        );
+        println!("Current light: {}", light);
 
         Ok(())
     }
@@ -268,7 +275,7 @@ fn mmm_from_time(time: &DateTime<Local>) -> String {
 }
 
 #[cfg(feature = "rpi-hw")]
-pub struct LCD16x2Display<'a, T: LightSensor> {
+pub struct LCD16x2Display {
     lcd: HD44780<
         FourBitBus<
             linux_embedded_hal::Pin,
@@ -281,13 +288,11 @@ pub struct LCD16x2Display<'a, T: LightSensor> {
     >,
 
     brightness_pwm: Pwm,
-
-    light_sensor: &'a T,
 }
 
 #[cfg(feature = "rpi-hw")]
-impl<'a, T: LightSensor> LCD16x2Display<'a, T> {
-    pub fn new(light_sensor: &'a T) -> Result<Self, Error> {
+impl LCD16x2Display {
+    pub fn new() -> Result<Self, Error> {
         // Using BCM numbers
         // i.e. pin 0 corresponds to wiringpi 30 and physical 27
 
@@ -350,7 +355,6 @@ impl<'a, T: LightSensor> LCD16x2Display<'a, T> {
         Ok(LCD16x2Display {
             lcd,
             brightness_pwm: pwm0,
-            light_sensor,
         })
     }
 
@@ -364,12 +368,13 @@ impl<'a, T: LightSensor> LCD16x2Display<'a, T> {
 }
 
 #[cfg(feature = "rpi-hw")]
-impl<'a, T: LightSensor> Display for LCD16x2Display<'a, T> {
+impl Display for LCD16x2Display {
     fn print(
         &mut self,
         time: &DateTime<Local>,
         _: u32,
         weather: &Option<OpenWeather>,
+        light: f32,
     ) -> Result<(), Error> {
         let (weather_desc, temp_str) = console_weather_and_temp_str(weather, 3, 14);
 
@@ -389,18 +394,17 @@ impl<'a, T: LightSensor> Display for LCD16x2Display<'a, T> {
         self.lcd
             .write_bytes(&str_to_lcd_bytes(&second_row), &mut Delay)?;
 
-        let brightness = self.light_sensor.read_light_normalized()?;
         let min_brightness = 0.01;
-        let brightness = brightness.max(min_brightness);
+        let light = light.max(min_brightness);
 
-        self.set_brightness(brightness)?;
+        self.set_brightness(light)?;
 
         Ok(())
     }
 }
 
 #[cfg(feature = "rpi-hw")]
-pub struct LCD20x4Display<'a, T: LightSensor> {
+pub struct LCD20x4Display {
     lcd: HD44780<
         FourBitBus<
             linux_embedded_hal::Pin,
@@ -413,13 +417,11 @@ pub struct LCD20x4Display<'a, T: LightSensor> {
     >,
 
     brightness_pwm: Pwm,
-
-    light_sensor: &'a T,
 }
 
 #[cfg(feature = "rpi-hw")]
-impl<'a, T: LightSensor> LCD20x4Display<'a, T> {
-    pub fn new(light_sensor: &'a T) -> Result<Self, Error> {
+impl LCD20x4Display {
+    pub fn new() -> Result<Self, Error> {
         // Using BCM numbers
         // i.e. pin 0 corresponds to wiringpi 30 and physical 27
 
@@ -482,7 +484,6 @@ impl<'a, T: LightSensor> LCD20x4Display<'a, T> {
         Ok(LCD20x4Display {
             lcd,
             brightness_pwm: pwm0,
-            light_sensor,
         })
     }
 
@@ -496,12 +497,13 @@ impl<'a, T: LightSensor> LCD20x4Display<'a, T> {
 }
 
 #[cfg(feature = "rpi-hw")]
-impl<'a, T: LightSensor> Display for LCD20x4Display<'a, T> {
+impl Display for LCD20x4Display {
     fn print(
         &mut self,
         time: &DateTime<Local>,
         current_state_index: u32,
         weather: &Option<OpenWeather>,
+        light: f32,
     ) -> Result<(), Error> {
         let (weather_desc, temp_str) = console_weather_and_temp_str(weather, 3, 14);
         let (high_temp_str, low_temp_str) = high_low_strs(weather);
@@ -542,11 +544,10 @@ impl<'a, T: LightSensor> Display for LCD20x4Display<'a, T> {
         self.lcd
             .write_bytes(&str_to_lcd_bytes(&fourth_row), &mut Delay)?;
 
-        let brightness = self.light_sensor.read_light_normalized()?;
         let min_brightness = 0.01;
-        let brightness = brightness.max(min_brightness);
+        let light = light.max(min_brightness);
 
-        self.set_brightness(brightness)?;
+        self.set_brightness(light)?;
 
         Ok(())
     }
@@ -562,15 +563,13 @@ fn str_to_lcd_bytes(s: &str) -> Vec<u8> {
 }
 
 #[cfg(feature = "rpi-hw")]
-pub struct AlphaNum4Display<'a, T: LightSensor> {
+pub struct AlphaNum4Display {
     ht16k33: HT16K33<I2c>,
-
-    light_sensor: &'a T,
 }
 
 #[cfg(feature = "rpi-hw")]
-impl<'a, T: LightSensor> AlphaNum4Display<'a, T> {
-    pub fn new(light_sensor: &'a T) -> Result<Self, Error> {
+impl AlphaNum4Display {
+    pub fn new() -> Result<Self, Error> {
         // The I2C device address.
         let address = 0x71;
 
@@ -583,19 +582,16 @@ impl<'a, T: LightSensor> AlphaNum4Display<'a, T> {
 
         ht16k33.set_display(ht16k33::Display::ON)?;
 
-        Ok(AlphaNum4Display {
-            ht16k33,
-            light_sensor,
-        })
+        Ok(AlphaNum4Display { ht16k33 })
     }
 
-    fn set_brightness(&mut self, brightness: f32) -> Result<(), Error> {
-        let level = (brightness * 15.0).round() as u8;
+    fn set_brightness(&mut self, light: f32) -> Result<(), Error> {
+        let level = (light * 15.0).round() as u8;
         let dimming = ht16k33::Dimming::from_u8(level)?;
 
         debug!(
             "Current light level: {}, dimming level: {}/16",
-            brightness, level
+            light, level
         );
 
         self.ht16k33.set_dimming(dimming)?;
@@ -605,12 +601,13 @@ impl<'a, T: LightSensor> AlphaNum4Display<'a, T> {
 }
 
 #[cfg(feature = "rpi-hw")]
-impl<'a, T: LightSensor> Display for AlphaNum4Display<'a, T> {
+impl Display for AlphaNum4Display {
     fn print(
         &mut self,
         _: &DateTime<Local>,
         _: u32,
         weather: &Option<OpenWeather>,
+        light: f32,
     ) -> Result<(), Error> {
         let [d1, d2, d3] = match weather {
             Some(w) => {
@@ -649,23 +646,20 @@ impl<'a, T: LightSensor> Display for AlphaNum4Display<'a, T> {
 
         self.ht16k33.write_display_buffer()?;
 
-        let brightness = self.light_sensor.read_light_normalized()?;
-        self.set_brightness(brightness)?;
+        self.set_brightness(light)?;
 
         Ok(())
     }
 }
 
 #[cfg(feature = "rpi-hw")]
-pub struct SevenSegment4Display<'a, T: LightSensor> {
+pub struct SevenSegment4Display {
     ht16k33: HT16K33<I2c>,
-
-    light_sensor: &'a T,
 }
 
 #[cfg(feature = "rpi-hw")]
-impl<'a, T: LightSensor> SevenSegment4Display<'a, T> {
-    pub fn new(light_sensor: &'a T) -> Result<Self, Error> {
+impl SevenSegment4Display {
+    pub fn new() -> Result<Self, Error> {
         // The I2C device address.
         let address = 0x70;
 
@@ -678,10 +672,7 @@ impl<'a, T: LightSensor> SevenSegment4Display<'a, T> {
 
         ht16k33.set_display(ht16k33::Display::ON)?;
 
-        Ok(SevenSegment4Display {
-            ht16k33,
-            light_sensor,
-        })
+        Ok(SevenSegment4Display { ht16k33 })
     }
 
     fn set_brightness(&mut self, brightness: f32) -> Result<(), Error> {
@@ -697,12 +688,13 @@ impl<'a, T: LightSensor> SevenSegment4Display<'a, T> {
 }
 
 #[cfg(feature = "rpi-hw")]
-impl<'a, T: LightSensor> Display for SevenSegment4Display<'a, T> {
+impl Display for SevenSegment4Display {
     fn print(
         &mut self,
         time: &DateTime<Local>,
         _: u32,
         _: &Option<OpenWeather>,
+        light: f32,
     ) -> Result<(), Error> {
         let [d1, d2, d3, d4] = split_time(time);
         adafruit_7segment::SevenSegment::update_buffer_with_digit(
@@ -728,8 +720,7 @@ impl<'a, T: LightSensor> Display for SevenSegment4Display<'a, T> {
         adafruit_7segment::SevenSegment::update_buffer_with_colon(&mut self.ht16k33, true);
         self.ht16k33.write_display_buffer()?;
 
-        let brightness = self.light_sensor.read_light_normalized()?;
-        self.set_brightness(brightness)?;
+        self.set_brightness(light)?;
 
         Ok(())
     }

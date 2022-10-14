@@ -39,6 +39,7 @@ impl Error {
 pub enum ErrorKind {
     Weather(Box<weather::Error>),
     Display(display::Error),
+    Light(light::Error),
 }
 
 impl fmt::Display for Error {
@@ -46,6 +47,7 @@ impl fmt::Display for Error {
         match self.kind {
             ErrorKind::Weather(ref err) => err.fmt(f),
             ErrorKind::Display(ref err) => err.fmt(f),
+            ErrorKind::Light(ref err) => err.fmt(f),
         }
     }
 }
@@ -66,9 +68,18 @@ impl From<display::Error> for Error {
     }
 }
 
-pub fn run<T: LightSensor>(
+impl From<light::Error> for Error {
+    fn from(e: light::Error) -> Self {
+        Error {
+            kind: ErrorKind::Light(e),
+        }
+    }
+}
+
+pub fn run(
     config: &Config,
-    display: &mut display::DisplayType<T>,
+    display: &mut display::DisplayType,
+    light_sensor: &light::LightSensorType,
 ) -> Result<(), Error> {
     let no_weather_error_duration = config.weather_request_polling_interval * 3;
 
@@ -113,14 +124,26 @@ pub fn run<T: LightSensor>(
             };
         }
 
+        let light_normalized = light_sensor.read_light_normalized()?;
+
         if now > last_weather_success + no_weather_error_duration {
             warn!(
                 "no successful weather in over {}s. Displaying empty weather",
                 no_weather_error_duration.as_secs()
             );
-            display.print(&Local::now(), state_machine.current_state(), &None)?;
+            display.print(
+                &Local::now(),
+                state_machine.current_state(),
+                &None,
+                light_normalized,
+            )?;
         } else {
-            display.print(&Local::now(), state_machine.current_state(), &weather)?;
+            display.print(
+                &Local::now(),
+                state_machine.current_state(),
+                &weather,
+                light_normalized,
+            )?;
         }
 
         thread::sleep(config.loop_sleep_duration);
