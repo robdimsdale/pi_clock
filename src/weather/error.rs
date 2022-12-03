@@ -18,10 +18,10 @@ impl Error {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ErrorKind {
-    Http(ureq::Error),
+    Http(Box<ureq::Error>),
     StringParse(std::io::Error),
     JSONParse(serde_json::Error),
-    Transport(ureq::Error),
+    Transport(Box<ureq::Error>),
     Stale,
 }
 
@@ -47,10 +47,10 @@ impl From<ureq::Error> for Error {
     fn from(e: ureq::Error) -> Self {
         match e {
             ureq::Error::Status(_, _) => Error {
-                kind: ErrorKind::Http(e),
+                kind: ErrorKind::Http(Box::new(e)),
             },
             ureq::Error::Transport(_) => Error {
-                kind: ErrorKind::Transport(e),
+                kind: ErrorKind::Transport(Box::new(e)),
             },
         }
     }
