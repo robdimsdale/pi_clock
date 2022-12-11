@@ -21,21 +21,14 @@ It requires [`cross`](https://github.com/cross-rs/cross) to be installed
 
 ## Raspberry Pi config
 
-Some useful configuration for Raspberry Pis
+Some useful configuration for Raspberry Pis:
 
 ### Setting up SSH and Wifi
 
-* Create an empty file at `/boot/ssh` to enable SSH.
-* Add Wifi details to `/boot/wpa_supplicant.conf` as follows (Raspbian Stretch and later):
+The official Raspberry Pi Imager tool supports initial config like hostname, wifi config, enabling SSH, etc.
 
-```
-ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
-network={
-    ssid="YOUR_SSID"
-    psk="YOUR_WIFI_PASSWORD"
-    key_mgmt=WPA-PSK
-}
-```
+The 64-bit lite OS is a good option: modern hardware (e.g. Pi 3, Pi 4, Pi Zero
+2) supports 64-bit instructions and there is no need to install the full desktop OS.
 
 The Pi Zero W only supports 2.4GHz; the Pi 4B also supports 5GHz.
 
@@ -45,6 +38,17 @@ PWM is used for the brightness of the LCD and TFT displays.
 
 * Add the line `dtoverlay=pwm-2chan` to the file `/boot/config.txt` and reboot.
 
+### Enabling I2C
+
+I2C is used to connect to the VEML7700 light sensor.
+
+* Enable it via the `raspi-config` utility.
+
 ### Enabling programs to run on startup
 
 * Add the command (with a trailing `&` to `/etc/rc.local`) and restart.
+
+
+### GPIO permissions
+
+On the first run, we often see GPIO permissions issues. Subsequent executions seem to be fine.
