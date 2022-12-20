@@ -192,7 +192,7 @@ impl LightSensor for RandomLightSensor {
 
 // Return a value between 0 and 1, truncating to MIN_LUX or MAX_LUX as necessary.
 fn normalize_lux(lux: f32) -> f32 {
-    let truncated = lux.min(MAX_LUX).max(MIN_LUX);
+    let truncated = lux.clamp(MIN_LUX, MAX_LUX);
     (truncated - MIN_LUX) / (MAX_LUX - MIN_LUX)
 }
 
