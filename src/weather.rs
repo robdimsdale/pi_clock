@@ -21,7 +21,8 @@ pub fn get_weather(uri: &str, timeout: Duration) -> Result<OpenWeather, Error> {
 }
 
 fn weather_stale(w: &OpenWeather) -> bool {
-    Local::now() - Local.timestamp(w.current.dt, 0) > chrono::Duration::minutes(30)
+    Local::now() - Local.timestamp_opt(w.current.dt, 0).earliest().unwrap()
+        > chrono::Duration::minutes(30)
 }
 
 fn timestamp_before_now(ts: &DateTime<Local>) -> bool {
@@ -44,7 +45,7 @@ pub fn high_low_temp(w: &OpenWeather) -> ((DateTime<Local>, f32), (DateTime<Loca
     let mut low = &w.hourly[0];
 
     for h in w.hourly.iter() {
-        let ts = Local.timestamp(h.dt, 0);
+        let ts = Local.timestamp_opt(h.dt, 0).earliest().unwrap();
         if timestamp_before_now(&ts) {
             continue;
         }
@@ -63,8 +64,8 @@ pub fn high_low_temp(w: &OpenWeather) -> ((DateTime<Local>, f32), (DateTime<Loca
     }
 
     (
-        (Local.timestamp(high.dt, 0), high.temp),
-        (Local.timestamp(low.dt, 0), low.temp),
+        (Local.timestamp_opt(high.dt, 0).earliest().unwrap(), high.temp),
+        (Local.timestamp_opt(low.dt, 0).earliest().unwrap(), low.temp),
     )
 }
 
@@ -90,7 +91,7 @@ pub fn next_precipitation_change(w: &OpenWeather) -> PrecipitationChange {
     };
 
     for h in w.hourly.iter() {
-        let ts = Local.timestamp(h.dt, 0);
+        let ts = Local.timestamp_opt(h.dt, 0).earliest().unwrap();
         if timestamp_before_now(&ts) {
             continue;
         }
@@ -157,7 +158,10 @@ mod tests {
         }];
 
         let maybe_next_change = next_precipitation_change(&w);
-        let expected = PrecipitationChange::Stop(Local.timestamp(w.hourly[2].dt, 0), Main::Rain);
+        let expected = PrecipitationChange::Stop(
+            Local.timestamp_opt(w.hourly[2].dt, 0).earliest().unwrap(),
+            Main::Rain,
+        );
 
         assert_eq!(maybe_next_change, expected);
     }
@@ -198,7 +202,10 @@ mod tests {
         }];
 
         let maybe_next_change = next_precipitation_change(&w);
-        let expected = PrecipitationChange::Start(Local.timestamp(w.hourly[1].dt, 0), Main::Rain);
+        let expected = PrecipitationChange::Start(
+            Local.timestamp_opt(w.hourly[1].dt, 0).earliest().unwrap(),
+            Main::Rain,
+        );
 
         assert_eq!(maybe_next_change, expected)
     }
@@ -239,7 +246,10 @@ mod tests {
         }];
 
         let maybe_next_change = next_precipitation_change(&w);
-        let expected = PrecipitationChange::Stop(Local.timestamp(w.hourly[2].dt, 0), Main::Snow);
+        let expected = PrecipitationChange::Stop(
+            Local.timestamp_opt(w.hourly[2].dt, 0).earliest().unwrap(),
+            Main::Snow,
+        );
 
         assert_eq!(maybe_next_change, expected);
     }
@@ -280,7 +290,10 @@ mod tests {
         }];
 
         let maybe_next_change = next_precipitation_change(&w);
-        let expected = PrecipitationChange::Start(Local.timestamp(w.hourly[1].dt, 0), Main::Snow);
+        let expected = PrecipitationChange::Start(
+            Local.timestamp_opt(w.hourly[1].dt, 0).earliest().unwrap(),
+            Main::Snow,
+        );
 
         assert_eq!(maybe_next_change, expected)
     }
@@ -321,7 +334,10 @@ mod tests {
         }];
 
         let maybe_next_change = next_precipitation_change(&w);
-        let expected = PrecipitationChange::Stop(Local.timestamp(w.hourly[2].dt, 0), Main::Drizzle);
+        let expected = PrecipitationChange::Stop(
+            Local.timestamp_opt(w.hourly[2].dt, 0).earliest().unwrap(),
+            Main::Drizzle,
+        );
 
         assert_eq!(maybe_next_change, expected);
     }
@@ -362,8 +378,10 @@ mod tests {
         }];
 
         let maybe_next_change = next_precipitation_change(&w);
-        let expected =
-            PrecipitationChange::Start(Local.timestamp(w.hourly[1].dt, 0), Main::Drizzle);
+        let expected = PrecipitationChange::Start(
+            Local.timestamp_opt(w.hourly[1].dt, 0).earliest().unwrap(),
+            Main::Drizzle,
+        );
 
         assert_eq!(maybe_next_change, expected)
     }
@@ -404,8 +422,10 @@ mod tests {
         }];
 
         let maybe_next_change = next_precipitation_change(&w);
-        let expected =
-            PrecipitationChange::Stop(Local.timestamp(w.hourly[2].dt, 0), Main::Thunderstorm);
+        let expected = PrecipitationChange::Stop(
+            Local.timestamp_opt(w.hourly[2].dt, 0).earliest().unwrap(),
+            Main::Thunderstorm,
+        );
 
         assert_eq!(maybe_next_change, expected);
     }
@@ -446,8 +466,10 @@ mod tests {
         }];
 
         let maybe_next_change = next_precipitation_change(&w);
-        let expected =
-            PrecipitationChange::Start(Local.timestamp(w.hourly[1].dt, 0), Main::Thunderstorm);
+        let expected = PrecipitationChange::Start(
+            Local.timestamp_opt(w.hourly[1].dt, 0).earliest().unwrap(),
+            Main::Thunderstorm,
+        );
 
         assert_eq!(maybe_next_change, expected)
     }
@@ -528,7 +550,10 @@ mod tests {
         }];
 
         let maybe_next_change = next_precipitation_change(&w);
-        let expected = PrecipitationChange::Stop(Local.timestamp(w.hourly[2].dt, 0), Main::Rain);
+        let expected = PrecipitationChange::Stop(
+            Local.timestamp_opt(w.hourly[2].dt, 0).earliest().unwrap(),
+            Main::Rain,
+        );
 
         assert_eq!(maybe_next_change, expected)
     }
@@ -569,7 +594,10 @@ mod tests {
         }];
 
         let maybe_next_change = next_precipitation_change(&w);
-        let expected = PrecipitationChange::Start(Local.timestamp(w.hourly[1].dt, 0), Main::Rain);
+        let expected = PrecipitationChange::Start(
+            Local.timestamp_opt(w.hourly[1].dt, 0).earliest().unwrap(),
+            Main::Rain,
+        );
 
         assert_eq!(maybe_next_change, expected)
     }
