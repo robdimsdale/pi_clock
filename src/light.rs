@@ -37,10 +37,10 @@ const MAX_LUX: f32 = 1.0;
 const MIN_LUX: f32 = 0.01;
 
 lazy_static! {
-    static ref MAX_LUX_START_TIME: NaiveTime = NaiveTime::from_hms(8, 0, 0);
-    static ref MAX_LUX_END_TIME: NaiveTime = NaiveTime::from_hms(19, 0, 0);
-    static ref MIN_LUX_START_TIME: NaiveTime = NaiveTime::from_hms(23, 0, 0); // Must be before midnight
-    static ref MIN_LUX_END_TIME: NaiveTime = NaiveTime::from_hms(7, 0, 0); // Must be after midnight
+    static ref MAX_LUX_START_TIME: NaiveTime = NaiveTime::from_hms_opt(8, 0, 0).unwrap();
+    static ref MAX_LUX_END_TIME: NaiveTime = NaiveTime::from_hms_opt(19, 0, 0).unwrap();
+    static ref MIN_LUX_START_TIME: NaiveTime = NaiveTime::from_hms_opt(23, 0, 0).unwrap(); // Must be before midnight
+    static ref MIN_LUX_END_TIME: NaiveTime = NaiveTime::from_hms_opt(7, 0, 0).unwrap(); // Must be after midnight
 }
 
 // To enable heterogenous abstractions
@@ -88,7 +88,7 @@ impl LightSensor for TimeLightSensor {
 }
 
 fn time_based_brightness_for_time(t: &NaiveTime) -> f32 {
-    let midnight = NaiveTime::from_num_seconds_from_midnight(0, 0);
+    let midnight = NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap();
 
     let full_bright_range = *MAX_LUX_START_TIME..*MAX_LUX_END_TIME;
     let bright_to_dark_range = *MAX_LUX_END_TIME..*MIN_LUX_START_TIME;
@@ -328,7 +328,9 @@ mod tests {
 
         assert_eq!(
             round(
-                time_based_brightness_for_time(&(NaiveTime::from_num_seconds_from_midnight(0, 0))),
+                time_based_brightness_for_time(
+                    &(NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())
+                ),
                 0
             ),
             0.
@@ -337,7 +339,7 @@ mod tests {
         assert_eq!(
             round(
                 time_based_brightness_for_time(
-                    &(NaiveTime::from_num_seconds_from_midnight(0, 0)
+                    &(NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap()
                         - chrono::Duration::nanoseconds(1))
                 ),
                 0
@@ -348,7 +350,7 @@ mod tests {
         assert_eq!(
             round(
                 time_based_brightness_for_time(
-                    &(NaiveTime::from_num_seconds_from_midnight(0, 0)
+                    &(NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap()
                         - chrono::Duration::nanoseconds(2))
                 ),
                 0
@@ -359,7 +361,7 @@ mod tests {
         assert_eq!(
             round(
                 time_based_brightness_for_time(
-                    &(NaiveTime::from_num_seconds_from_midnight(0, 0)
+                    &(NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap()
                         + chrono::Duration::nanoseconds(1))
                 ),
                 0
