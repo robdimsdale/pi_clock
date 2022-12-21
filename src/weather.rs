@@ -64,7 +64,10 @@ pub fn high_low_temp(w: &OpenWeather) -> ((DateTime<Local>, f32), (DateTime<Loca
     }
 
     (
-        (Local.timestamp_opt(high.dt, 0).earliest().unwrap(), high.temp),
+        (
+            Local.timestamp_opt(high.dt, 0).earliest().unwrap(),
+            high.temp,
+        ),
         (Local.timestamp_opt(low.dt, 0).earliest().unwrap(), low.temp),
     )
 }
