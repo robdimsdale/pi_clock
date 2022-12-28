@@ -35,6 +35,7 @@ jobs:
         target: aarch64-unknown-linux-gnu
         override: true
         components: rustfmt,clippy
+    - run: cargo install cross --locked
     - uses: actions-rs/cargo@v1
       with:
         use-cross: true
