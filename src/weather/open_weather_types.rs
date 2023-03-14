@@ -59,6 +59,7 @@ pub struct Weather {
     pub icon: String,
 }
 
+#[derive(Default)]
 #[derive(Clone, Copy, Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Main {
     Thunderstorm,
@@ -74,14 +75,9 @@ pub enum Main {
     Ash,
     Squall,
     Tornado,
+    #[default]
     Clear,
     Clouds,
-}
-
-impl Default for Main {
-    fn default() -> Main {
-        Main::Clear
-    }
 }
 
 impl fmt::Display for Main {
