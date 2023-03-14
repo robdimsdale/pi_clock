@@ -59,7 +59,7 @@ pub struct Weather {
     pub icon: String,
 }
 
-#[derive(Default,Clone, Copy, Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Default, Clone, Copy, Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Main {
     Thunderstorm,
     Drizzle,
