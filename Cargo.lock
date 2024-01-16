@@ -549,7 +549,7 @@ dependencies = [
  "adafruit-alphanum4",
  "chrono",
  "display-interface-spi",
- "embedded-hal 0.2.7",
+ "embedded-hal 1.0.0",
  "hd44780-driver",
  "ht16k33",
  "lazy_static",
