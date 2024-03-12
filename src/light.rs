@@ -92,12 +92,12 @@ fn time_based_brightness_for_time(t: &NaiveTime) -> f32 {
 
     let full_bright_range = *MAX_LUX_START_TIME..*MAX_LUX_END_TIME;
     let bright_to_dark_range = *MAX_LUX_END_TIME..*MIN_LUX_START_TIME;
-    let full_dark_range1 = *MIN_LUX_START_TIME..(midnight - chrono::Duration::nanoseconds(1));
+    let full_dark_range1 = *MIN_LUX_START_TIME..(midnight - chrono::TimeDelta::nanoseconds(1));
     let full_dark_range2 = midnight..*MIN_LUX_END_TIME;
     let dark_to_bright_range = *MIN_LUX_END_TIME..*MAX_LUX_START_TIME;
 
     // Separate case for end-of-day bound as ranges are exxclusive
-    if *t == midnight - chrono::Duration::nanoseconds(1) {
+    if *t == midnight - chrono::TimeDelta::nanoseconds(1) {
         return 0.;
     }
 
@@ -225,7 +225,7 @@ mod tests {
         assert_eq!(
             round(
                 time_based_brightness_for_time(
-                    &(*MAX_LUX_START_TIME + chrono::Duration::nanoseconds(1))
+                    &(*MAX_LUX_START_TIME + chrono::TimeDelta::nanoseconds(1))
                 ),
                 0
             ),
@@ -235,7 +235,7 @@ mod tests {
         assert_eq!(
             round(
                 time_based_brightness_for_time(
-                    &(*MAX_LUX_END_TIME - chrono::Duration::nanoseconds(1))
+                    &(*MAX_LUX_END_TIME - chrono::TimeDelta::nanoseconds(1))
                 ),
                 0
             ),
@@ -253,7 +253,7 @@ mod tests {
         assert_eq!(
             round(
                 time_based_brightness_for_time(
-                    &(*MAX_LUX_END_TIME + chrono::Duration::milliseconds(1))
+                    &(*MAX_LUX_END_TIME + chrono::TimeDelta::milliseconds(1))
                 ),
                 0
             ),
@@ -290,7 +290,7 @@ mod tests {
         assert_eq!(
             round(
                 time_based_brightness_for_time(
-                    &(*MIN_LUX_START_TIME - chrono::Duration::milliseconds(1))
+                    &(*MIN_LUX_START_TIME - chrono::TimeDelta::milliseconds(1))
                 ),
                 0
             ),
@@ -307,7 +307,7 @@ mod tests {
         assert_eq!(
             round(
                 time_based_brightness_for_time(
-                    &(*MIN_LUX_START_TIME + chrono::Duration::nanoseconds(1))
+                    &(*MIN_LUX_START_TIME + chrono::TimeDelta::nanoseconds(1))
                 ),
                 0
             ),
@@ -317,7 +317,7 @@ mod tests {
         assert_eq!(
             round(
                 time_based_brightness_for_time(
-                    &(*MIN_LUX_END_TIME - chrono::Duration::nanoseconds(1))
+                    &(*MIN_LUX_END_TIME - chrono::TimeDelta::nanoseconds(1))
                 ),
                 0
             ),
@@ -340,7 +340,7 @@ mod tests {
             round(
                 time_based_brightness_for_time(
                     &(NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap()
-                        - chrono::Duration::nanoseconds(1))
+                        - chrono::TimeDelta::nanoseconds(1))
                 ),
                 0
             ),
@@ -351,7 +351,7 @@ mod tests {
             round(
                 time_based_brightness_for_time(
                     &(NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap()
-                        - chrono::Duration::nanoseconds(2))
+                        - chrono::TimeDelta::nanoseconds(2))
                 ),
                 0
             ),
@@ -362,7 +362,7 @@ mod tests {
             round(
                 time_based_brightness_for_time(
                     &(NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap()
-                        + chrono::Duration::nanoseconds(1))
+                        + chrono::TimeDelta::nanoseconds(1))
                 ),
                 0
             ),
@@ -380,7 +380,7 @@ mod tests {
         assert_eq!(
             round(
                 time_based_brightness_for_time(
-                    &(*MIN_LUX_END_TIME + chrono::Duration::milliseconds(1))
+                    &(*MIN_LUX_END_TIME + chrono::TimeDelta::milliseconds(1))
                 ),
                 0
             ),
@@ -417,7 +417,7 @@ mod tests {
         assert_eq!(
             round(
                 time_based_brightness_for_time(
-                    &(*MAX_LUX_START_TIME - chrono::Duration::milliseconds(1))
+                    &(*MAX_LUX_START_TIME - chrono::TimeDelta::milliseconds(1))
                 ),
                 0
             ),
