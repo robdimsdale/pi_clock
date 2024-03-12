@@ -22,7 +22,7 @@ pub fn get_weather(uri: &str, timeout: Duration) -> Result<OpenWeather, Error> {
 
 fn weather_stale(w: &OpenWeather) -> bool {
     Local::now() - Local.timestamp_opt(w.current.dt, 0).earliest().unwrap()
-        > chrono::Duration::minutes(30)
+        > chrono::Duration::try_minutes(30).unwrap()
 }
 
 fn timestamp_before_now(ts: &DateTime<Local>) -> bool {
@@ -30,7 +30,7 @@ fn timestamp_before_now(ts: &DateTime<Local>) -> bool {
 }
 
 fn timestamp_after_24_hours(ts: &DateTime<Local>) -> bool {
-    *ts - Local::now() > chrono::Duration::hours(24)
+    *ts - Local::now() > chrono::Duration::try_hours(24).unwrap()
 }
 
 fn is_precipitation(w: Main) -> bool {
@@ -137,9 +137,9 @@ mod tests {
 
         w.hourly = vec![Default::default(), Default::default(), Default::default()];
 
-        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
-        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
-        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+        w.hourly[0].dt = (Local::now() - chrono::Duration::try_minutes(30).unwrap()).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::try_hours(1).unwrap()).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::try_hours(2).unwrap()).timestamp();
 
         w.hourly[0].weather = vec![Weather {
             id: 2345,
@@ -181,9 +181,9 @@ mod tests {
 
         w.hourly = vec![Default::default(), Default::default(), Default::default()];
 
-        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
-        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
-        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+        w.hourly[0].dt = (Local::now() - chrono::Duration::try_minutes(30).unwrap()).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::try_hours(1).unwrap()).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::try_hours(2).unwrap()).timestamp();
 
         w.hourly[0].weather = vec![Weather {
             id: 2345,
@@ -225,9 +225,9 @@ mod tests {
 
         w.hourly = vec![Default::default(), Default::default(), Default::default()];
 
-        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
-        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
-        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+        w.hourly[0].dt = (Local::now() - chrono::Duration::try_minutes(30).unwrap()).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::try_hours(1).unwrap()).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::try_hours(2).unwrap()).timestamp();
 
         w.hourly[0].weather = vec![Weather {
             id: 2345,
@@ -269,9 +269,9 @@ mod tests {
 
         w.hourly = vec![Default::default(), Default::default(), Default::default()];
 
-        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
-        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
-        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+        w.hourly[0].dt = (Local::now() - chrono::Duration::try_minutes(30).unwrap()).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::try_hours(1).unwrap()).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::try_hours(2).unwrap()).timestamp();
 
         w.hourly[0].weather = vec![Weather {
             id: 2345,
@@ -313,9 +313,9 @@ mod tests {
 
         w.hourly = vec![Default::default(), Default::default(), Default::default()];
 
-        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
-        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
-        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+        w.hourly[0].dt = (Local::now() - chrono::Duration::try_minutes(30).unwrap()).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::try_hours(1).unwrap()).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::try_hours(2).unwrap()).timestamp();
 
         w.hourly[0].weather = vec![Weather {
             id: 2345,
@@ -357,9 +357,9 @@ mod tests {
 
         w.hourly = vec![Default::default(), Default::default(), Default::default()];
 
-        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
-        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
-        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+        w.hourly[0].dt = (Local::now() - chrono::Duration::try_minutes(30).unwrap()).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::try_hours(1).unwrap()).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::try_hours(2).unwrap()).timestamp();
 
         w.hourly[0].weather = vec![Weather {
             id: 2345,
@@ -401,9 +401,9 @@ mod tests {
 
         w.hourly = vec![Default::default(), Default::default(), Default::default()];
 
-        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
-        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
-        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+        w.hourly[0].dt = (Local::now() - chrono::Duration::try_minutes(30).unwrap()).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::try_hours(1).unwrap()).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::try_hours(2).unwrap()).timestamp();
 
         w.hourly[0].weather = vec![Weather {
             id: 2345,
@@ -445,9 +445,9 @@ mod tests {
 
         w.hourly = vec![Default::default(), Default::default(), Default::default()];
 
-        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
-        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
-        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+        w.hourly[0].dt = (Local::now() - chrono::Duration::try_minutes(30).unwrap()).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::try_hours(1).unwrap()).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::try_hours(2).unwrap()).timestamp();
 
         w.hourly[0].weather = vec![Weather {
             id: 2345,
@@ -489,9 +489,9 @@ mod tests {
 
         w.hourly = vec![Default::default(), Default::default(), Default::default()];
 
-        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
-        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
-        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+        w.hourly[0].dt = (Local::now() - chrono::Duration::try_minutes(30).unwrap()).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::try_hours(1).unwrap()).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::try_hours(2).unwrap()).timestamp();
 
         w.hourly[0].weather = vec![Weather {
             id: 2345,
@@ -529,9 +529,9 @@ mod tests {
 
         w.hourly = vec![Default::default(), Default::default(), Default::default()];
 
-        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
-        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
-        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+        w.hourly[0].dt = (Local::now() - chrono::Duration::try_minutes(30).unwrap()).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::try_hours(1).unwrap()).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::try_hours(2).unwrap()).timestamp();
 
         w.hourly[0].weather = vec![Weather {
             id: 2345,
@@ -573,9 +573,9 @@ mod tests {
 
         w.hourly = vec![Default::default(), Default::default(), Default::default()];
 
-        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
-        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
-        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+        w.hourly[0].dt = (Local::now() - chrono::Duration::try_minutes(30).unwrap()).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::try_hours(1).unwrap()).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::try_hours(2).unwrap()).timestamp();
 
         w.hourly[0].weather = vec![Weather {
             id: 2345,
@@ -617,9 +617,9 @@ mod tests {
 
         w.hourly = vec![Default::default(), Default::default(), Default::default()];
 
-        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
-        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
-        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+        w.hourly[0].dt = (Local::now() - chrono::Duration::try_minutes(30).unwrap()).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::try_hours(1).unwrap()).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::try_hours(2).unwrap()).timestamp();
 
         w.hourly[0].weather = vec![Weather {
             id: 2345,
@@ -658,9 +658,9 @@ mod tests {
 
         w.hourly = vec![Default::default(), Default::default(), Default::default()];
 
-        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
-        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
-        w.hourly[2].dt = (Local::now() + chrono::Duration::hours(2)).timestamp();
+        w.hourly[0].dt = (Local::now() - chrono::Duration::try_minutes(30).unwrap()).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::try_hours(1).unwrap()).timestamp();
+        w.hourly[2].dt = (Local::now() + chrono::Duration::try_hours(2).unwrap()).timestamp();
 
         w.hourly[0].weather = vec![Weather {
             id: 2345,
@@ -701,10 +701,12 @@ mod tests {
 
         w.hourly = vec![Default::default(), Default::default(), Default::default()];
 
-        w.hourly[0].dt = (Local::now() - chrono::Duration::minutes(30)).timestamp();
-        w.hourly[1].dt = (Local::now() + chrono::Duration::hours(1)).timestamp();
-        w.hourly[2].dt =
-            (Local::now() + chrono::Duration::hours(24) + chrono::Duration::minutes(1)).timestamp(); // Add one minute to avoid racy tests.
+        w.hourly[0].dt = (Local::now() - chrono::Duration::try_minutes(30).unwrap()).timestamp();
+        w.hourly[1].dt = (Local::now() + chrono::Duration::try_hours(1).unwrap()).timestamp();
+        w.hourly[2].dt = (Local::now()
+            + chrono::Duration::try_hours(24).unwrap()
+            + chrono::Duration::try_minutes(1).unwrap())
+        .timestamp(); // Add one minute to avoid racy tests.
 
         w.hourly[0].weather = vec![Weather {
             id: 2345,
