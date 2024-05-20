@@ -24,7 +24,7 @@ display-interface-spi = {version = "0.5.0", optional = true}
 embedded-hal = {version = "1.0.0", optional = true}
 hd44780-driver = {version = "0.4.0", optional = true}
 ht16k33 = {version = "0.4.0", optional = true}
-linux-embedded-hal = {version = "0.3", optional = true}
+linux-embedded-hal = {version = "0.4", optional = true}
 rppal = {version = "0.17.1", features = ["hal"], optional = true}
 veml6030 = {version = "0.1.2", optional = true}
 
