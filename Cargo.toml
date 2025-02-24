@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 chrono = "0.4.39"
 lazy_static = "1.5.0"
-log = "0.4.25"
+log = "0.4.26"
 num-traits = "0.2.19"
 rand = "0.8.0"
 serde = { version = "1.0.217", features = ["derive"] }
